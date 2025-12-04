@@ -153,7 +153,8 @@
   </style>
 </head>
 <body>
-  <div id="ptr-message">↻ Solte para atualizar...</div>
+  <!-- Mensagem do pull-to-refresh -->
+  <div id="ptr-message">↻ Solte para atualizar a página...</div>
 
   <h1>Meus Investimentos</h1>
 
@@ -240,7 +241,7 @@
     </div>
   </div>
 
-  <!-- Rodapé com data/hora da última atualização -->
+  <!-- Rodapé com versão da aplicação -->
   <footer id="footerAtualizacao" style="
     text-align:center;
     font-size:0.75rem;
@@ -249,12 +250,18 @@
     padding-top:10px;
     border-top:1px solid #e5e7eb;
   ">
-    Última atualização: carregando...
+    Última versão da aplicação: carregando...
   </footer>
 
   <script>
+    // 👍 Ajuste aqui quando fizer uma nova versão do app
+    const APP_VERSION = "v0.1 — 09/12/2025";
+
+    // 👍 Troque pela URL do SEU Worker (proxy Cloudflare)
+    // Exemplo: "https://meu-proxy.dionatan.workers.dev"
+    const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev";
+
     const STORAGE_KEY = "meus_investimentos_v3";
-	const APP_VERSION = "Atualizado em 04/12/2025 13:58"; 
 
     function carregarDados() {
       try {
@@ -298,10 +305,10 @@
       el.className = "status" + (type ? " " + type : "");
     }
 
-    // Atualiza rodapé com data/hora da última atualização
+    // Rodapé com versão da APLICAÇÃO (não muda com os dados)
     function atualizarRodape() {
-        const footer = document.getElementById("footerAtualizacao");
-		footer.textContent = "Última versão da aplicação: " + APP_VERSION;
+      const footer = document.getElementById("footerAtualizacao");
+      footer.textContent = "Última versão da aplicação: " + APP_VERSION;
     }
 
     // MAPA CRIPTO (ticker -> {id, nome})
@@ -344,32 +351,35 @@
       }
     }
 
+    // Busca ações / fundos via proxy (Cloudflare Worker + brapi)
     async function buscarPrecoAcaoOuFundo(ticker) {
       if (!ticker) return { preco: null, nomeApi: null, valido: false };
 
       const clean = ticker.toUpperCase().trim();
-      const url = `https://brapi.dev/api/quote/${encodeURIComponent(clean)}`;
+
       try {
+        const url = `${PROXY_BASE_URL}/quote?symbol=${encodeURIComponent(clean)}`;
         const resp = await fetch(url);
+
         if (!resp.ok) {
+          console.error("Erro no proxy:", resp.status);
           return { preco: null, nomeApi: null, valido: false };
         }
+
         const data = await resp.json();
-        const result = data.results && data.results[0];
-        if (!result) {
+        const r = data.results && data.results[0];
+
+        if (!r || typeof r.regularMarketPrice !== "number") {
           return { preco: null, nomeApi: null, valido: false };
         }
-        const price = typeof result.regularMarketPrice === "number"
-          ? result.regularMarketPrice
-          : null;
-        const nomeApi = result.longName || result.shortName || null;
+
         return {
-          preco: price,
-          nomeApi,
+          preco: r.regularMarketPrice,
+          nomeApi: r.longName || r.shortName || clean,
           valido: true
         };
       } catch (e) {
-        console.error("Erro ao buscar ação/fundo:", ticker, e);
+        console.error("Erro ao chamar proxy:", e);
         return { preco: null, nomeApi: null, valido: false };
       }
     }
@@ -451,7 +461,6 @@
           investimentos.splice(index, 1);
           salvarDados(investimentos);
           render();
-          atualizarRodape();
         };
         tdAcoes.appendChild(btnDel);
 
@@ -501,7 +510,9 @@
 
     async function validarTicker(tipo, ticker) {
       const upper = ticker.toUpperCase().trim();
-      if (!upper) return { valido: false, msg: "Informe um ticker." };
+      if (!upper && (tipo === "acao" || tipo === "fundo" || tipo === "cripto")) {
+        return { valido: false, msg: "Informe um ticker para esse tipo de ativo." };
+      }
 
       if (tipo === "cripto") {
         const info = MAPA_CRIPTO[upper];
@@ -530,7 +541,7 @@
         if (!res.valido) {
           return {
             valido: false,
-            msg: "Ticker de ação/fundo não encontrado na API. Verifique o código (ex.: PETR4, IVVB11)."
+            msg: "Ticker de ação/fundo não encontrado. Verifique o código (ex.: PETR4, IVVB11, JURO11)."
           };
         }
         return {
@@ -540,7 +551,7 @@
         };
       }
 
-      // Renda fixa: não valida ticker (é opcional)
+      // Renda fixa: ticker opcional, não valida
       return { valido: true, preco: null, nomeApi: null };
     }
 
@@ -560,11 +571,6 @@
         return;
       }
 
-      if ((tipo === "acao" || tipo === "fundo" || tipo === "cripto") && !ticker) {
-        alert("Para ações, fundos e cripto é obrigatório informar o ticker.");
-        return;
-      }
-
       if ((tipo === "acao" || tipo === "fundo" || tipo === "cripto") && (!quantidade || isNaN(quantidade))) {
         alert("Para ações, fundos e cripto informe a quantidade.");
         return;
@@ -573,14 +579,11 @@
       setStatus("Validando ticker...", "");
 
       const valida = await validarTicker(tipo, ticker);
-		if (!valida.valido) {
-		  // Mostra pop-up com erro
-		  alert(valida.msg || "Erro ao validar o ticker. Verifique o código informado.");
-
-		  // Também mantém a mensagem na área de status da aba Lançamentos
-		  setStatus(valida.msg || "Erro ao validar o ticker.", "error");
-		  return;
-		}
+      if (!valida.valido) {
+        alert(valida.msg || "Erro ao validar o ticker. Verifique o código informado.");
+        setStatus(valida.msg || "Erro ao validar o ticker.", "error");
+        return;
+      }
 
       // Se a API trouxe nome e o campo nome estiver vazio, preenche automático
       if (!nome && valida.nomeApi) {
@@ -593,7 +596,7 @@
       }
 
       // Se quantidade não foi informada para renda fixa, define como 1
-      if (!quantidade || isNaN(quantidade)) {
+      if ((!quantidade || isNaN(quantidade)) && tipo === "renda_fixa") {
         quantidade = 1;
       }
 
@@ -618,7 +621,6 @@
       document.getElementById("preco").value = "";
 
       render();
-      atualizarRodape();
       setStatus("Lançamento adicionado com sucesso.", "success");
     });
 
@@ -660,7 +662,6 @@
 
       salvarDados(investimentos);
       render();
-      atualizarRodape();
 
       if (atualizados > 0) {
         setStatus(`Preços atualizados para ${atualizados} ativo(s).`, "success");
@@ -686,11 +687,11 @@
       });
     });
 
-    // Render inicial e atualização de rodapé
+    // Render inicial + versão no rodapé
     render();
     atualizarRodape();
 
-    // PULL TO REFRESH (arrastar para baixo para atualizar)
+    // PULL TO REFRESH (arrastar para baixo para recarregar a página)
     let startY = 0;
     let puxando = false;
     const mensagemPTR = document.getElementById("ptr-message");
@@ -725,7 +726,7 @@
       mensagemPTR.style.display = "none";
 
       if (distancia > 80) {
-        // Recarrega a página; ao recarregar, o render() e atualizarRodape() rodam de novo
+        // Recarrega a página; ao recarregar, versão continua a mesma (APP_VERSION)
         location.reload();
       }
     });
