@@ -141,7 +141,30 @@
       color: #15803d;
     }
   </style>
+  <style>
+  body {
+    overscroll-behavior-y: contain; /* evita refresh do Safari interferir */
+  }
+  #ptr-message {
+    text-align: center;
+    padding: 10px;
+    font-size: 0.8rem;
+    color: #6b7280;
+    display: none;
+  }
+</style>
+<div id="ptr-message">↻ Solte para atualizar...</div>
 </head>
+  <footer id="footerAtualizacao" style="
+  text-align:center;
+  font-size:0.75rem;
+  color:#6b7280;
+  margin-top:20px;
+  padding-top:10px;
+  border-top:1px solid #e5e7eb;
+">
+  Última atualização: carregando...
+</footer>
 <body>
   <h1>Meus Investimentos</h1>
 
@@ -228,6 +251,7 @@
     </div>
   </div>
 
+
   <script>
     const STORAGE_KEY = "meus_investimentos_v3";
 
@@ -240,6 +264,21 @@
         return [];
       }
     }
+	
+	function atualizarRodape() {
+  const agora = new Date();
+  const formato = agora.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+
+  const footer = document.getElementById("footerAtualizacao");
+  footer.textContent = "Última atualização: " + formato;
+}
 
     function salvarDados(dados) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
@@ -420,6 +459,7 @@
           investimentos.splice(index, 1);
           salvarDados(investimentos);
           render();
+		  atualizarRodape();
         };
         tdAcoes.appendChild(btnDel);
 
@@ -623,6 +663,7 @@
 
       salvarDados(investimentos);
       render();
+	  atualizarRodape();
 
       if (atualizados > 0) {
         setStatus(`Preços atualizados para ${atualizados} ativo(s).`, "success");
@@ -649,6 +690,46 @@
     });
 
     render();
+	// PULL TO REFRESH (ARRASTAR PARA BAIXO PARA ATUALIZAR)
+let startY = 0;
+let puxando = false;
+const mensagemPTR = document.getElementById("ptr-message");
+
+window.addEventListener("touchstart", (e) => {
+  if (window.scrollY === 0) {
+    startY = e.touches[0].clientY;
+    puxando = true;
+  }
+});
+
+window.addEventListener("touchmove", (e) => {
+  if (!puxando) return;
+
+  const atualY = e.touches[0].clientY;
+  const distancia = atualY - startY;
+
+  if (distancia > 50) {
+    mensagemPTR.style.display = "block";
+  } else {
+    mensagemPTR.style.display = "none";
+  }
+});
+
+window.addEventListener("touchend", (e) => {
+  if (!puxando) return;
+  puxando = false;
+
+  mensagemPTR.style.display = "none";
+
+  const endY = e.changedTouches[0].clientY;
+  const distancia = endY - startY;
+
+  if (distancia > 80) {
+    atualizarRodape(); // Atualiza a data/hora
+    location.reload(); // Recarrega a página
+  }
+});
+
   </script>
 </body>
 </html>
