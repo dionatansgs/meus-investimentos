@@ -159,25 +159,30 @@
   <h1>Meus Investimentos</h1>
   
   <!-- Configuração de usuário -->
-  <div class="card" id="userConfigCard">
-  <h2 style="font-size:0.95rem; margin-top:0;">Configuração de usuário</h2>
+<div class="card" id="loginCard">
+  <h2 style="font-size:0.95rem; margin-top:0;">Login</h2>
   <p style="font-size:0.8rem; margin-top:0; color:#6b7280;">
-    Use um <strong>ID de usuário</strong> e uma <strong>chave (apiKey)</strong> gerados pelo administrador.
+    Entre com seu <strong>usuário</strong> e <strong>senha</strong>. A conta é criada pelo administrador.
   </p>
 
-  <label for="userIdInput">ID do usuário</label>
-  <input id="userIdInput" placeholder="Ex.: dionatan" />
+  <label for="loginUserId">Usuário</label>
+  <input id="loginUserId" placeholder="Ex.: dionatan" />
 
-  <label for="userKeyInput">Chave do usuário (apiKey)</label>
-  <input id="userKeyInput" placeholder="Cole aqui a chave do usuário" />
+  <label for="loginPassword">Senha</label>
+  <input id="loginPassword" type="password" placeholder="Sua senha" />
 
-  <button id="saveUserBtn" class="secondary-btn" style="margin-top:8px;">
-    Salvar usuário e recarregar dados
+  <button id="loginBtn" class="secondary-btn" style="margin-top:8px;">
+    Entrar
+  </button>
+  <button id="logoutBtn" class="secondary-btn" style="margin-top:8px; margin-left:8px;">
+    Sair
   </button>
 
   <p id="currentUserInfo" style="font-size:0.8rem; margin-top:8px; color:#4b5563;">
-    Usuário atual: <strong><span id="currentUserLabel">não configurado</span></strong>
+    Usuário atual: <strong><span id="currentUserLabel">não logado</span></strong>
   </p>
+</div>
+
 
   <!-- Abas -->
   <div class="tabs">
@@ -275,65 +280,111 @@
   </footer>
 
   <script>
-  // 👍 Ajuste aqui quando fizer uma nova versão do app
-  const APP_VERSION = "v0.3 — 04/12/2025";
+  const APP_VERSION = "v0.4 — 04/12/2025";
   const TAB_STORAGE_KEY = "meus_investimentos_tab";
 
-  // 👍 URL do SEU Worker (proxy Cloudflare)
   const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev";
 
-  // Chaves para guardar o usuário no localStorage
+  const SESSION_STORAGE_KEY = "meus_investimentos_session";
   const USER_ID_STORAGE_KEY = "meus_investimentos_user_id";
-  const USER_KEY_STORAGE_KEY = "meus_investimentos_user_key";
-
-  // Estes DOIS serão usados em todas as chamadas de dados
-  let userId = "";
-  let userKey = "";
 
   const STORAGE_KEY = "meus_investimentos_v3";
 
-  // ---------- USUÁRIO / LOGIN ----------
+  let sessionToken = "";
+  let currentUserId = "";
 
-  function carregarUsuarioLocal() {
+  // ---------- SESSÃO / LOGIN ----------
+
+  function carregarSessaoLocal() {
     try {
-      const id = localStorage.getItem(USER_ID_STORAGE_KEY) || "";
-      const key = localStorage.getItem(USER_KEY_STORAGE_KEY) || "";
-      userId = id;
-      userKey = key;
+      currentUserId = localStorage.getItem(USER_ID_STORAGE_KEY) || "";
+      sessionToken = localStorage.getItem(SESSION_STORAGE_KEY) || "";
 
-      const userIdInput = document.getElementById("userIdInput");
-      const userKeyInput = document.getElementById("userKeyInput");
+      const userInput = document.getElementById("loginUserId");
       const currentUserLabel = document.getElementById("currentUserLabel");
 
-      if (userIdInput) userIdInput.value = id;
-      if (userKeyInput) userKeyInput.value = key;
+      if (userInput) userInput.value = currentUserId;
       if (currentUserLabel) {
-        currentUserLabel.textContent = id ? id : "não configurado";
+        currentUserLabel.textContent = currentUserId || "não logado";
       }
     } catch (e) {
-      console.error("Erro ao carregar usuário local:", e);
+      console.error("Erro ao carregar sessão local:", e);
     }
   }
 
-  function salvarUsuarioLocal(novoId, novaKey) {
-    userId = novoId.trim();
-    userKey = novaKey.trim();
+  function salvarSessaoLocal(userId, token) {
+    currentUserId = userId;
+    sessionToken = token;
     try {
-      localStorage.setItem(USER_ID_STORAGE_KEY, userId);
-      localStorage.setItem(USER_KEY_STORAGE_KEY, userKey);
+      localStorage.setItem(USER_ID_STORAGE_KEY, userId || "");
+      localStorage.setItem(SESSION_STORAGE_KEY, token || "");
     } catch (e) {
-      console.error("Erro ao salvar usuário local:", e);
+      console.error("Erro ao salvar sessão local:", e);
     }
 
     const currentUserLabel = document.getElementById("currentUserLabel");
     if (currentUserLabel) {
-      currentUserLabel.textContent = userId ? userId : "não configurado";
+      currentUserLabel.textContent = userId || "não logado";
     }
+  }
+
+  async function fazerLogin() {
+    const userId = document.getElementById("loginUserId").value.trim();
+    const password = document.getElementById("loginPassword").value;
+
+    if (!userId || !password) {
+      alert("Informe usuário e senha.");
+      return;
+    }
+
+    setStatus("Autenticando...", "");
+
+    try {
+      const resp = await fetch(`${PROXY_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, password }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        alert(err.error || "Falha ao fazer login.");
+        setStatus("Falha ao fazer login.", "error");
+        return;
+      }
+
+      const json = await resp.json();
+      if (!json.ok || !json.sessionId || !json.user) {
+        alert("Resposta de login inválida.");
+        setStatus("Erro de login.", "error");
+        return;
+      }
+
+      salvarSessaoLocal(json.user.id, json.sessionId);
+      setStatus(`Logado como ${json.user.id}. Sincronizando dados...`, "success");
+
+      // limpa carteira local e sincroniza da nuvem
+      investimentos = [];
+      salvarDadosLocal(investimentos);
+      render();
+      await sincronizarComNuvemAoAbrir();
+    } catch (e) {
+      console.error("Erro no login:", e);
+      alert("Erro ao conectar ao servidor de login.");
+      setStatus("Erro ao conectar ao servidor.", "error");
+    }
+  }
+
+  function fazerLogout() {
+    salvarSessaoLocal("", "");
+    investimentos = [];
+    salvarDadosLocal(investimentos);
+    render();
+    setStatus("Sessão encerrada. Faça login para carregar seus dados.", "");
   }
 
   // ---------- DADOS LOCAL + NUVEM ----------
 
-  // carrega do localStorage (rápido, só pra não ficar vazio)
   function carregarDadosLocal() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -344,41 +395,34 @@
     }
   }
 
-  // salva no localStorage
   function salvarDadosLocal(dados) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
   }
 
-  // salva na nuvem (Worker + KV)
   async function salvarDadosNuvem(dados) {
-    // se usuário não configurado, não tenta salvar na nuvem
-    if (!userId || !userKey) {
-      console.warn("Usuário não configurado. Salvando apenas localmente.");
+    if (!sessionToken) {
+      console.warn("Sem sessão. Dados serão apenas locais.");
       return;
     }
     try {
-      await fetch(
-        `${PROXY_BASE_URL}/data?userId=${encodeURIComponent(
-          userId
-        )}&userKey=${encodeURIComponent(userKey)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(dados),
-        }
-      );
+      await fetch(`${PROXY_BASE_URL}/data`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify(dados),
+      });
     } catch (e) {
       console.error("Erro ao salvar na nuvem:", e);
     }
   }
 
-  // função central: salvar sempre local + nuvem
   function salvarDados(dados) {
     salvarDadosLocal(dados);
     salvarDadosNuvem(dados);
   }
 
-  // inicialmente, carrega só do local (instantâneo)
   let investimentos = carregarDadosLocal();
 
   function formatCurrency(v) {
@@ -408,17 +452,17 @@
 
   function setStatus(msg, type = "") {
     const el = document.getElementById("status");
+    if (!el) return;
     el.textContent = msg || "";
     el.className = "status" + (type ? " " + type : "");
   }
 
-  // Rodapé com versão da APLICAÇÃO (não muda com os dados)
   function atualizarRodape() {
     const footer = document.getElementById("footerAtualizacao");
+    if (!footer) return;
     footer.textContent = "Última versão da aplicação: " + APP_VERSION;
   }
 
-  // MAPA CRIPTO (ticker -> {id, nome})
   const MAPA_CRIPTO = {
     BTC: { id: "bitcoin", nome: "Bitcoin" },
     ETH: { id: "ethereum", nome: "Ethereum" },
@@ -426,7 +470,6 @@
     ADA: { id: "cardano", nome: "Cardano" },
     XRP: { id: "ripple", nome: "XRP" },
     BNB: { id: "binancecoin", nome: "BNB" },
-    // pode adicionar mais aqui
   };
 
   async function buscarPrecoCripto(ticker) {
@@ -460,7 +503,6 @@
     }
   }
 
-  // Busca ações / fundos via proxy (Cloudflare Worker + brapi)
   async function buscarPrecoAcaoOuFundo(ticker) {
     if (!ticker) return { preco: null, nomeApi: null, valido: false };
 
@@ -495,6 +537,7 @@
 
   function render() {
     const tbody = document.getElementById("lista");
+    if (!tbody) return;
     tbody.innerHTML = "";
 
     const totais = {
@@ -591,6 +634,7 @@
     });
 
     const totaisDiv = document.getElementById("totais");
+    if (!totaisDiv) return;
     totaisDiv.innerHTML = "";
 
     let totalCarteira = 0;
@@ -671,11 +715,15 @@
       };
     }
 
-    // Renda fixa: ticker opcional, não valida
     return { valido: true, preco: null, nomeApi: null };
   }
 
   document.getElementById("addBtn").addEventListener("click", async () => {
+    if (!sessionToken) {
+      alert("Faça login antes de adicionar lançamentos.");
+      return;
+    }
+
     const tipo = document.getElementById("tipo").value;
     const ticker = document.getElementById("ticker").value.trim();
     let nome = document.getElementById("nome").value.trim();
@@ -719,17 +767,14 @@
       return;
     }
 
-    // Se a API trouxe nome e o campo nome estiver vazio, preenche automático
     if (!nome && valida.nomeApi) {
       nome = valida.nomeApi;
     }
 
-    // Se a API trouxe preço e o campo preço estiver vazio, usa o da API
     if (!preco && valida.preco) {
       preco = valida.preco;
     }
 
-    // Se quantidade não foi informada para renda fixa, define como 1
     if ((!quantidade || isNaN(quantidade)) && tipo === "renda_fixa") {
       quantidade = 1;
     }
@@ -747,10 +792,8 @@
 
     salvarDados(investimentos);
 
-    // Pop-up de confirmação
     alert("Lançamento adicionado com sucesso!");
 
-    // Limpar campos
     document.getElementById("ticker").value = "";
     document.getElementById("nome").value = "";
     document.getElementById("valor").value = "";
@@ -762,6 +805,11 @@
   });
 
   async function atualizarPrecosMercado() {
+    if (!sessionToken) {
+      alert("Faça login antes de atualizar preços.");
+      return;
+    }
+
     if (!investimentos.length) {
       setStatus("Nenhum investimento para atualizar.", "");
       return;
@@ -820,7 +868,6 @@
     });
 
   function setActiveTab(tab) {
-    // Botões
     document.querySelectorAll(".tab-btn").forEach((b) => {
       const bTab = b.getAttribute("data-tab");
       if (bTab === tab) {
@@ -830,7 +877,6 @@
       }
     });
 
-    // Conteúdos
     document.querySelectorAll(".tab-content").forEach((c) => {
       if (c.id === "tab-" + tab) {
         c.classList.add("active");
@@ -839,7 +885,6 @@
       }
     });
 
-    // Salva aba atual
     try {
       localStorage.setItem(TAB_STORAGE_KEY, tab);
     } catch (e) {
@@ -847,7 +892,6 @@
     }
   }
 
-  // Lógica das abas
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const tab = btn.getAttribute("data-tab");
@@ -855,7 +899,6 @@
     });
   });
 
-  // Ao carregar a página, restaura a última aba usada
   let abaSalva = "cadastro";
   try {
     const stored = localStorage.getItem(TAB_STORAGE_KEY);
@@ -867,51 +910,32 @@
   }
   setActiveTab(abaSalva);
 
-  // Inicializa usuário (preenche telinha)
-  carregarUsuarioLocal();
+  carregarSessaoLocal();
 
-  // Botão de salvar usuário
-  const saveUserBtn = document.getElementById("saveUserBtn");
-  if (saveUserBtn) {
-    saveUserBtn.addEventListener("click", async () => {
-      const idInput = document.getElementById("userIdInput").value.trim();
-      const keyInput = document.getElementById("userKeyInput").value.trim();
-
-      if (!idInput || !keyInput) {
-        alert("Informe ID de usuário e chave (apiKey).");
-        return;
-      }
-
-      salvarUsuarioLocal(idInput, keyInput);
-
-      // limpa carteira local para evitar misturar usuários
-      investimentos = [];
-      salvarDadosLocal(investimentos);
-      render();
-      setStatus("Usuário alterado. Sincronizando dados da nuvem...", "");
-
-      // puxa dados do novo usuário
-      await sincronizarComNuvemAoAbrir();
-    });
+  const loginBtn = document.getElementById("loginBtn");
+  if (loginBtn) {
+    loginBtn.addEventListener("click", fazerLogin);
   }
 
-  // Render inicial + versão no rodapé
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", fazerLogout);
+  }
+
   render();
   atualizarRodape();
 
-  // Depois de renderizar com o que tem localmente,
-  // tenta sincronizar com a nuvem (se houver dados lá).
   async function sincronizarComNuvemAoAbrir() {
-    if (!userId || !userKey) {
-      console.warn("Usuário não configurado. Pulei sync de nuvem.");
+    if (!sessionToken) {
+      console.warn("Sem sessão. Pulando sync de nuvem.");
       return;
     }
     try {
-      const resp = await fetch(
-        `${PROXY_BASE_URL}/data?userId=${encodeURIComponent(
-          userId
-        )}&userKey=${encodeURIComponent(userKey)}`
-      );
+      const resp = await fetch(`${PROXY_BASE_URL}/data`, {
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+        },
+      });
       if (!resp.ok) {
         console.error("Falha ao carregar da nuvem:", resp.status);
         return;
@@ -919,7 +943,7 @@
       const json = await resp.json();
       if (Array.isArray(json.data)) {
         investimentos = json.data;
-        salvarDadosLocal(investimentos); // cache local atualizado
+        salvarDadosLocal(investimentos);
         render();
         setStatus("Dados sincronizados da nuvem.", "success");
       }
@@ -928,10 +952,8 @@
     }
   }
 
-  // chama a sincronização inicial
   sincronizarComNuvemAoAbrir();
 
-  // PULL TO REFRESH (arrastar para baixo para recarregar a página)
   let startY = 0;
   let puxando = false;
   const mensagemPTR = document.getElementById("ptr-message");
@@ -966,7 +988,6 @@
     mensagemPTR.style.display = "none";
 
     if (distancia > 80) {
-      // Recarrega a página; ao recarregar, versão continua a mesma (APP_VERSION)
       location.reload();
     }
   });
