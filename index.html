@@ -157,6 +157,27 @@
   <div id="ptr-message">↻ Solte para atualizar a página...</div>
 
   <h1>Meus Investimentos</h1>
+  
+  <!-- Configuração de usuário -->
+  <div class="card" id="userConfigCard">
+  <h2 style="font-size:0.95rem; margin-top:0;">Configuração de usuário</h2>
+  <p style="font-size:0.8rem; margin-top:0; color:#6b7280;">
+    Use um <strong>ID de usuário</strong> e uma <strong>chave (apiKey)</strong> gerados pelo administrador.
+  </p>
+
+  <label for="userIdInput">ID do usuário</label>
+  <input id="userIdInput" placeholder="Ex.: dionatan" />
+
+  <label for="userKeyInput">Chave do usuário (apiKey)</label>
+  <input id="userKeyInput" placeholder="Cole aqui a chave do usuário" />
+
+  <button id="saveUserBtn" class="secondary-btn" style="margin-top:8px;">
+    Salvar usuário e recarregar dados
+  </button>
+
+  <p id="currentUserInfo" style="font-size:0.8rem; margin-top:8px; color:#4b5563;">
+    Usuário atual: <strong><span id="currentUserLabel">não configurado</span></strong>
+  </p>
 
   <!-- Abas -->
   <div class="tabs">
@@ -261,12 +282,56 @@
   // 👍 URL do SEU Worker (proxy Cloudflare)
   const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev";
 
-  // 👍 Identificação do usuário (multiusuário)
-  // Preencha com os dados retornados pela rota /admin/users do Worker
-  const USER_ID  = "dionatan";               // id do usuário
-  const USER_KEY = "COLOQUE_AQUI_SUA_APIKEY"; // apiKey retornada ao criar usuário
+  // Chaves para guardar o usuário no localStorage
+  const USER_ID_STORAGE_KEY = "meus_investimentos_user_id";
+  const USER_KEY_STORAGE_KEY = "meus_investimentos_user_key";
+
+  // Estes DOIS serão usados em todas as chamadas de dados
+  let userId = "";
+  let userKey = "";
 
   const STORAGE_KEY = "meus_investimentos_v3";
+
+  // ---------- USUÁRIO / LOGIN ----------
+
+  function carregarUsuarioLocal() {
+    try {
+      const id = localStorage.getItem(USER_ID_STORAGE_KEY) || "";
+      const key = localStorage.getItem(USER_KEY_STORAGE_KEY) || "";
+      userId = id;
+      userKey = key;
+
+      const userIdInput = document.getElementById("userIdInput");
+      const userKeyInput = document.getElementById("userKeyInput");
+      const currentUserLabel = document.getElementById("currentUserLabel");
+
+      if (userIdInput) userIdInput.value = id;
+      if (userKeyInput) userKeyInput.value = key;
+      if (currentUserLabel) {
+        currentUserLabel.textContent = id ? id : "não configurado";
+      }
+    } catch (e) {
+      console.error("Erro ao carregar usuário local:", e);
+    }
+  }
+
+  function salvarUsuarioLocal(novoId, novaKey) {
+    userId = novoId.trim();
+    userKey = novaKey.trim();
+    try {
+      localStorage.setItem(USER_ID_STORAGE_KEY, userId);
+      localStorage.setItem(USER_KEY_STORAGE_KEY, userKey);
+    } catch (e) {
+      console.error("Erro ao salvar usuário local:", e);
+    }
+
+    const currentUserLabel = document.getElementById("currentUserLabel");
+    if (currentUserLabel) {
+      currentUserLabel.textContent = userId ? userId : "não configurado";
+    }
+  }
+
+  // ---------- DADOS LOCAL + NUVEM ----------
 
   // carrega do localStorage (rápido, só pra não ficar vazio)
   function carregarDadosLocal() {
@@ -284,13 +349,18 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
   }
 
-  // salva na nuvem (Worker + KV) – não precisa await em todo lugar
+  // salva na nuvem (Worker + KV)
   async function salvarDadosNuvem(dados) {
+    // se usuário não configurado, não tenta salvar na nuvem
+    if (!userId || !userKey) {
+      console.warn("Usuário não configurado. Salvando apenas localmente.");
+      return;
+    }
     try {
       await fetch(
         `${PROXY_BASE_URL}/data?userId=${encodeURIComponent(
-          USER_ID
-        )}&userKey=${encodeURIComponent(USER_KEY)}`,
+          userId
+        )}&userKey=${encodeURIComponent(userKey)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -305,7 +375,6 @@
   // função central: salvar sempre local + nuvem
   function salvarDados(dados) {
     salvarDadosLocal(dados);
-    // dispara a gravação na nuvem em background
     salvarDadosNuvem(dados);
   }
 
@@ -798,6 +867,34 @@
   }
   setActiveTab(abaSalva);
 
+  // Inicializa usuário (preenche telinha)
+  carregarUsuarioLocal();
+
+  // Botão de salvar usuário
+  const saveUserBtn = document.getElementById("saveUserBtn");
+  if (saveUserBtn) {
+    saveUserBtn.addEventListener("click", async () => {
+      const idInput = document.getElementById("userIdInput").value.trim();
+      const keyInput = document.getElementById("userKeyInput").value.trim();
+
+      if (!idInput || !keyInput) {
+        alert("Informe ID de usuário e chave (apiKey).");
+        return;
+      }
+
+      salvarUsuarioLocal(idInput, keyInput);
+
+      // limpa carteira local para evitar misturar usuários
+      investimentos = [];
+      salvarDadosLocal(investimentos);
+      render();
+      setStatus("Usuário alterado. Sincronizando dados da nuvem...", "");
+
+      // puxa dados do novo usuário
+      await sincronizarComNuvemAoAbrir();
+    });
+  }
+
   // Render inicial + versão no rodapé
   render();
   atualizarRodape();
@@ -805,11 +902,15 @@
   // Depois de renderizar com o que tem localmente,
   // tenta sincronizar com a nuvem (se houver dados lá).
   async function sincronizarComNuvemAoAbrir() {
+    if (!userId || !userKey) {
+      console.warn("Usuário não configurado. Pulei sync de nuvem.");
+      return;
+    }
     try {
       const resp = await fetch(
         `${PROXY_BASE_URL}/data?userId=${encodeURIComponent(
-          USER_ID
-        )}&userKey=${encodeURIComponent(USER_KEY)}`
+          userId
+        )}&userKey=${encodeURIComponent(userKey)}`
       );
       if (!resp.ok) {
         console.error("Falha ao carregar da nuvem:", resp.status);
