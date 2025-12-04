@@ -256,6 +256,7 @@
   <script>
     // 👍 Ajuste aqui quando fizer uma nova versão do app
     const APP_VERSION = "v0.2 — 04/12/2025";
+	const TAB_STORAGE_KEY = "meus_investimentos_tab";
 
     // 👍 Troque pela URL do SEU Worker (proxy Cloudflare)
     // Exemplo: "https://meu-proxy.dionatan.workers.dev"
@@ -636,6 +637,9 @@ let investimentos = carregarDadosLocal();
       });
 
       salvarDados(investimentos);
+	  
+	  // Pop-up de confirmação
+      alert("Lançamento adicionado com sucesso!");
 
       // Limpar campos
       document.getElementById("ticker").value = "";
@@ -698,18 +702,55 @@ let investimentos = carregarDadosLocal();
       atualizarPrecosMercado();
     });
 
-    // Lógica das abas
-    document.querySelectorAll(".tab-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const tab = btn.getAttribute("data-tab");
 
-        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
+function setActiveTab(tab) {
+  // Botões
+  document.querySelectorAll(".tab-btn").forEach(b => {
+    const bTab = b.getAttribute("data-tab");
+    if (bTab === tab) {
+      b.classList.add("active");
+    } else {
+      b.classList.remove("active");
+    }
+  });
 
-        document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
-        document.getElementById("tab-" + tab).classList.add("active");
-      });
-    });
+  // Conteúdos
+  document.querySelectorAll(".tab-content").forEach(c => {
+    if (c.id === "tab-" + tab) {
+      c.classList.add("active");
+    } else {
+      c.classList.remove("active");
+    }
+  });
+
+  // Salva aba atual
+  try {
+    localStorage.setItem(TAB_STORAGE_KEY, tab);
+  } catch (e) {
+    console.warn("Não foi possível salvar aba atual:", e);
+  }
+}
+
+
+// Lógica das abas
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const tab = btn.getAttribute("data-tab");
+    setActiveTab(tab);
+  });
+});
+
+// Ao carregar a página, restaura a última aba usada
+let abaSalva = "cadastro";
+try {
+  const stored = localStorage.getItem(TAB_STORAGE_KEY);
+  if (stored === "cadastro" || stored === "lancamentos") {
+    abaSalva = stored;
+  }
+} catch (e) {
+  console.warn("Não foi possível ler aba salva:", e);
+}
+setActiveTab(abaSalva);
 
     // Render inicial + versão no rodapé
     render();
