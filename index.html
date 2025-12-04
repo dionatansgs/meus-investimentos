@@ -254,574 +254,621 @@
   </footer>
 
   <script>
-    // 👍 Ajuste aqui quando fizer uma nova versão do app
-    const APP_VERSION = "v0.3 — 04/12/2025 - Users";
-	const TAB_STORAGE_KEY = "meus_investimentos_tab";
+  // 👍 Ajuste aqui quando fizer uma nova versão do app
+  const APP_VERSION = "v0.3 — 04/12/2025";
+  const TAB_STORAGE_KEY = "meus_investimentos_tab";
 
-    // 👍 Troque pela URL do SEU Worker (proxy Cloudflare)
-    // Exemplo: "https://meu-proxy.dionatan.workers.dev"
-    const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev";
-	const USER_ID  = "dionatan";        // id definido no admin
-	const USER_KEY = "f3a0c0a8b7...";   // apiKey retornada na criação
-	
-    const STORAGE_KEY = "meus_investimentos_v3";
+  // 👍 URL do SEU Worker (proxy Cloudflare)
+  const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev";
 
-// carrega do localStorage (rápido, só pra não ficar vazio)
-function carregarDadosLocal() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    console.error(e);
-    return [];
+  // 👍 Identificação do usuário (multiusuário)
+  // Preencha com os dados retornados pela rota /admin/users do Worker
+  const USER_ID  = "dionatan";               // id do usuário
+  const USER_KEY = "COLOQUE_AQUI_SUA_APIKEY"; // apiKey retornada ao criar usuário
+
+  const STORAGE_KEY = "meus_investimentos_v3";
+
+  // carrega do localStorage (rápido, só pra não ficar vazio)
+  function carregarDadosLocal() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
   }
-}
 
-// salva no localStorage
-function salvarDadosLocal(dados) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
-}
-
-// salva na nuvem (Worker + KV) – não precisa await em todo lugar
-async function salvarDadosNuvem(dados) {
-  try {
-    await fetch(`${PROXY_BASE_URL}/data?userId=${encodeURIComponent(USER_ID)}&userKey=${encodeURIComponent(USER_KEY)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(dados),
-    });
-  } catch (e) {
-    console.error("Erro ao salvar na nuvem:", e);
+  // salva no localStorage
+  function salvarDadosLocal(dados) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
   }
-}
 
-// função central: salvar sempre local + nuvem
-function salvarDados(dados) {
-  salvarDadosLocal(dados);
-  // dispara a gravação na nuvem em background
-  salvarDadosNuvem(dados);
-}
-
-// inicialmente, carrega só do local (instantâneo)
-let investimentos = carregarDadosLocal();
-
-    function formatCurrency(v) {
-      if (v == null || isNaN(v)) return "-";
-      return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-    }
-
-    function formatPercent(v) {
-      if (v == null || isNaN(v)) return "-";
-      return v.toFixed(2).replace(".", ",") + " %";
-    }
-
-    function labelTipo(tipo) {
-      switch (tipo) {
-        case "renda_fixa": return "Renda fixa";
-        case "fundo":      return "Fundo";
-        case "cripto":     return "Cripto";
-        case "acao":       return "Ação";
-        default:           return tipo;
-      }
-    }
-
-    function setStatus(msg, type = "") {
-      const el = document.getElementById("status");
-      el.textContent = msg || "";
-      el.className = "status" + (type ? " " + type : "");
-    }
-
-    // Rodapé com versão da APLICAÇÃO (não muda com os dados)
-    function atualizarRodape() {
-      const footer = document.getElementById("footerAtualizacao");
-      footer.textContent = "Última versão da aplicação: " + APP_VERSION;
-    }
-
-    // MAPA CRIPTO (ticker -> {id, nome})
-    const MAPA_CRIPTO = {
-      BTC: { id: "bitcoin",  nome: "Bitcoin" },
-      ETH: { id: "ethereum", nome: "Ethereum" },
-      SOL: { id: "solana",   nome: "Solana" },
-      ADA: { id: "cardano",  nome: "Cardano" },
-      XRP: { id: "ripple",   nome: "XRP" },
-      BNB: { id: "binancecoin", nome: "BNB" }
-      // pode adicionar mais aqui
-    };
-
-    async function buscarPrecoCripto(ticker) {
-      if (!ticker) return { preco: null, nomeApi: null, valido: false };
-
-      const upper = ticker.toUpperCase().trim();
-      const info = MAPA_CRIPTO[upper];
-      if (!info) {
-        return { preco: null, nomeApi: null, valido: false };
-      }
-
-      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(info.id)}&vs_currencies=brl`;
-      try {
-        const resp = await fetch(url);
-        if (!resp.ok) {
-          return { preco: null, nomeApi: info.nome, valido: false };
+  // salva na nuvem (Worker + KV) – não precisa await em todo lugar
+  async function salvarDadosNuvem(dados) {
+    try {
+      await fetch(
+        `${PROXY_BASE_URL}/data?userId=${encodeURIComponent(
+          USER_ID
+        )}&userKey=${encodeURIComponent(USER_KEY)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(dados),
         }
-        const data = await resp.json();
-        const valor = data[info.id]?.brl;
-        const preco = typeof valor === "number" ? valor : null;
-        return {
-          preco,
-          nomeApi: info.nome,
-          valido: true
-        };
-      } catch (e) {
-        console.error("Erro ao buscar cripto:", ticker, e);
+      );
+    } catch (e) {
+      console.error("Erro ao salvar na nuvem:", e);
+    }
+  }
+
+  // função central: salvar sempre local + nuvem
+  function salvarDados(dados) {
+    salvarDadosLocal(dados);
+    // dispara a gravação na nuvem em background
+    salvarDadosNuvem(dados);
+  }
+
+  // inicialmente, carrega só do local (instantâneo)
+  let investimentos = carregarDadosLocal();
+
+  function formatCurrency(v) {
+    if (v == null || isNaN(v)) return "-";
+    return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function formatPercent(v) {
+    if (v == null || isNaN(v)) return "-";
+    return v.toFixed(2).replace(".", ",") + " %";
+  }
+
+  function labelTipo(tipo) {
+    switch (tipo) {
+      case "renda_fixa":
+        return "Renda fixa";
+      case "fundo":
+        return "Fundo";
+      case "cripto":
+        return "Cripto";
+      case "acao":
+        return "Ação";
+      default:
+        return tipo;
+    }
+  }
+
+  function setStatus(msg, type = "") {
+    const el = document.getElementById("status");
+    el.textContent = msg || "";
+    el.className = "status" + (type ? " " + type : "");
+  }
+
+  // Rodapé com versão da APLICAÇÃO (não muda com os dados)
+  function atualizarRodape() {
+    const footer = document.getElementById("footerAtualizacao");
+    footer.textContent = "Última versão da aplicação: " + APP_VERSION;
+  }
+
+  // MAPA CRIPTO (ticker -> {id, nome})
+  const MAPA_CRIPTO = {
+    BTC: { id: "bitcoin", nome: "Bitcoin" },
+    ETH: { id: "ethereum", nome: "Ethereum" },
+    SOL: { id: "solana", nome: "Solana" },
+    ADA: { id: "cardano", nome: "Cardano" },
+    XRP: { id: "ripple", nome: "XRP" },
+    BNB: { id: "binancecoin", nome: "BNB" },
+    // pode adicionar mais aqui
+  };
+
+  async function buscarPrecoCripto(ticker) {
+    if (!ticker) return { preco: null, nomeApi: null, valido: false };
+
+    const upper = ticker.toUpperCase().trim();
+    const info = MAPA_CRIPTO[upper];
+    if (!info) {
+      return { preco: null, nomeApi: null, valido: false };
+    }
+
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(
+      info.id
+    )}&vs_currencies=brl`;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) {
         return { preco: null, nomeApi: info.nome, valido: false };
       }
+      const data = await resp.json();
+      const valor = data[info.id]?.brl;
+      const preco = typeof valor === "number" ? valor : null;
+      return {
+        preco,
+        nomeApi: info.nome,
+        valido: true,
+      };
+    } catch (e) {
+      console.error("Erro ao buscar cripto:", ticker, e);
+      return { preco: null, nomeApi: info.nome, valido: false };
     }
+  }
 
-    // Busca ações / fundos via proxy (Cloudflare Worker + brapi)
-    async function buscarPrecoAcaoOuFundo(ticker) {
-      if (!ticker) return { preco: null, nomeApi: null, valido: false };
+  // Busca ações / fundos via proxy (Cloudflare Worker + brapi)
+  async function buscarPrecoAcaoOuFundo(ticker) {
+    if (!ticker) return { preco: null, nomeApi: null, valido: false };
 
-      const clean = ticker.toUpperCase().trim();
+    const clean = ticker.toUpperCase().trim();
 
-      try {
-        const url = `${PROXY_BASE_URL}/quote?symbol=${encodeURIComponent(clean)}`;
-        const resp = await fetch(url);
+    try {
+      const url = `${PROXY_BASE_URL}/quote?symbol=${encodeURIComponent(clean)}`;
+      const resp = await fetch(url);
 
-        if (!resp.ok) {
-          console.error("Erro no proxy:", resp.status);
-          return { preco: null, nomeApi: null, valido: false };
-        }
-
-        const data = await resp.json();
-        const r = data.results && data.results[0];
-
-        if (!r || typeof r.regularMarketPrice !== "number") {
-          return { preco: null, nomeApi: null, valido: false };
-        }
-
-        return {
-          preco: r.regularMarketPrice,
-          nomeApi: r.longName || r.shortName || clean,
-          valido: true
-        };
-      } catch (e) {
-        console.error("Erro ao chamar proxy:", e);
+      if (!resp.ok) {
+        console.error("Erro no proxy:", resp.status);
         return { preco: null, nomeApi: null, valido: false };
       }
-    }
 
-    function render() {
-      const tbody = document.getElementById("lista");
-      tbody.innerHTML = "";
+      const data = await resp.json();
+      const r = data.results && data.results[0];
 
-      const totais = {
-        renda_fixa: { aplicado: 0, atual: 0 },
-        fundo:      { aplicado: 0, atual: 0 },
-        cripto:     { aplicado: 0, atual: 0 },
-        acao:       { aplicado: 0, atual: 0 },
+      if (!r || typeof r.regularMarketPrice !== "number") {
+        return { preco: null, nomeApi: null, valido: false };
+      }
+
+      return {
+        preco: r.regularMarketPrice,
+        nomeApi: r.longName || r.shortName || clean,
+        valido: true,
       };
+    } catch (e) {
+      console.error("Erro ao chamar proxy:", e);
+      return { preco: null, nomeApi: null, valido: false };
+    }
+  }
 
-      investimentos.forEach((inv, index) => {
-        const valorAplicado = inv.valor || 0;
-        const quantidade = inv.quantidade || 0;
-        const precoAtual = inv.preco || 0;
+  function render() {
+    const tbody = document.getElementById("lista");
+    tbody.innerHTML = "";
 
-        const valorAtual = (quantidade && precoAtual)
+    const totais = {
+      renda_fixa: { aplicado: 0, atual: 0 },
+      fundo: { aplicado: 0, atual: 0 },
+      cripto: { aplicado: 0, atual: 0 },
+      acao: { aplicado: 0, atual: 0 },
+    };
+
+    investimentos.forEach((inv, index) => {
+      const valorAplicado = inv.valor || 0;
+      const quantidade = inv.quantidade || 0;
+      const precoAtual = inv.preco || 0;
+
+      const valorAtual =
+        quantidade && precoAtual
           ? quantidade * precoAtual
-          : (precoAtual || valorAplicado);
+          : precoAtual || valorAplicado;
 
-        const precoMedio = (quantidade && valorAplicado)
-          ? (valorAplicado / quantidade)
-          : (valorAplicado || null);
+      const precoMedio =
+        quantidade && valorAplicado
+          ? valorAplicado / quantidade
+          : valorAplicado || null;
 
-        const plValor = (valorAtual || 0) - (valorAplicado || 0);
-        const plPercent = valorAplicado
-          ? (plValor / valorAplicado) * 100
-          : null;
+      const plValor = (valorAtual || 0) - (valorAplicado || 0);
+      const plPercent = valorAplicado
+        ? (plValor / valorAplicado) * 100
+        : null;
 
-        if (totais[inv.tipo]) {
-          totais[inv.tipo].aplicado += valorAplicado;
-          totais[inv.tipo].atual += valorAtual;
-        }
-
-        const tr = document.createElement("tr");
-
-        const tdTipo = document.createElement("td");
-        const span = document.createElement("span");
-        span.textContent = labelTipo(inv.tipo);
-        span.className = "badge tipo-" + inv.tipo;
-        tdTipo.appendChild(span);
-
-        const tdTicker = document.createElement("td");
-        tdTicker.textContent = inv.ticker || "-";
-
-        const tdNome = document.createElement("td");
-        tdNome.textContent = inv.nome || "-";
-
-        const tdCorretora = document.createElement("td");
-        tdCorretora.textContent = inv.corretora || "-";
-
-        const tdQtd = document.createElement("td");
-        tdQtd.textContent = quantidade ? quantidade : "-";
-
-        const tdPM = document.createElement("td");
-        tdPM.textContent = formatCurrency(precoMedio);
-
-        const tdPrecoAtual = document.createElement("td");
-        tdPrecoAtual.textContent = formatCurrency(precoAtual);
-
-        const tdAplicado = document.createElement("td");
-        tdAplicado.textContent = formatCurrency(valorAplicado);
-
-        const tdValorAtual = document.createElement("td");
-        tdValorAtual.textContent = formatCurrency(valorAtual);
-
-        const tdPL = document.createElement("td");
-        tdPL.textContent = formatPercent(plPercent);
-
-        const tdAcoes = document.createElement("td");
-        const btnDel = document.createElement("button");
-        btnDel.textContent = "Excluir";
-        btnDel.className = "danger-btn";
-        btnDel.onclick = () => {
-          investimentos.splice(index, 1);
-          salvarDados(investimentos);
-          render();
-        };
-        tdAcoes.appendChild(btnDel);
-
-        tr.appendChild(tdTipo);
-        tr.appendChild(tdTicker);
-        tr.appendChild(tdNome);
-        tr.appendChild(tdCorretora);
-        tr.appendChild(tdQtd);
-        tr.appendChild(tdPM);
-        tr.appendChild(tdPrecoAtual);
-        tr.appendChild(tdAplicado);
-        tr.appendChild(tdValorAtual);
-        tr.appendChild(tdPL);
-        tr.appendChild(tdAcoes);
-
-        tbody.appendChild(tr);
-      });
-
-      const totaisDiv = document.getElementById("totais");
-      totaisDiv.innerHTML = "";
-
-      let totalCarteira = 0;
-
-      Object.entries(totais).forEach(([tipo, obj]) => {
-        if (obj.aplicado > 0 || obj.atual > 0) {
-          const span = document.createElement("span");
-          totalCarteira += obj.atual;
-          const plTipo = obj.aplicado
-            ? ((obj.atual - obj.aplicado) / obj.aplicado) * 100
-            : null;
-
-          span.textContent =
-            `${labelTipo(tipo)} | Aplicado: ${formatCurrency(obj.aplicado)} | ` +
-            `Atual: ${formatCurrency(obj.atual)} | P/L: ${formatPercent(plTipo)}`;
-          totaisDiv.appendChild(span);
-        }
-      });
-
-      if (totalCarteira > 0) {
-        const spanTotal = document.createElement("span");
-        spanTotal.style.marginTop = "6px";
-        spanTotal.style.fontWeight = "600";
-        spanTotal.textContent = `Total da carteira (valor atual): ${formatCurrency(totalCarteira)}`;
-        totaisDiv.appendChild(spanTotal);
-      }
-    }
-
-    async function validarTicker(tipo, ticker) {
-      const upper = ticker.toUpperCase().trim();
-      if (!upper && (tipo === "acao" || tipo === "fundo" || tipo === "cripto")) {
-        return { valido: false, msg: "Informe um ticker para esse tipo de ativo." };
+      if (totais[inv.tipo]) {
+        totais[inv.tipo].aplicado += valorAplicado;
+        totais[inv.tipo].atual += valorAtual;
       }
 
-      if (tipo === "cripto") {
-        const info = MAPA_CRIPTO[upper];
-        if (!info) {
-          return {
-            valido: false,
-            msg: "Ticker de cripto não mapeado. Adicione no código ou corrija o ticker."
-          };
-        }
-        const res = await buscarPrecoCripto(upper);
-        if (!res.valido) {
-          return {
-            valido: false,
-            msg: "Não foi possível validar o ticker de cripto. Verifique o código."
-          };
-        }
-        return {
-          valido: true,
-          preco: res.preco,
-          nomeApi: res.nomeApi
-        };
-      }
+      const tr = document.createElement("tr");
 
-      if (tipo === "acao" || tipo === "fundo") {
-        const res = await buscarPrecoAcaoOuFundo(upper);
-        if (!res.valido) {
-          return {
-            valido: false,
-            msg: "Ticker de ação/fundo não encontrado. Verifique o código (ex.: PETR4, IVVB11, JURO11)."
-          };
-        }
-        return {
-          valido: true,
-          preco: res.preco,
-          nomeApi: res.nomeApi
-        };
-      }
+      const tdTipo = document.createElement("td");
+      const span = document.createElement("span");
+      span.textContent = labelTipo(inv.tipo);
+      span.className = "badge tipo-" + inv.tipo;
+      tdTipo.appendChild(span);
 
-      // Renda fixa: ticker opcional, não valida
-      return { valido: true, preco: null, nomeApi: null };
-    }
+      const tdTicker = document.createElement("td");
+      tdTicker.textContent = inv.ticker || "-";
 
-    document.getElementById("addBtn").addEventListener("click", async () => {
-      const tipo = document.getElementById("tipo").value;
-      const ticker = document.getElementById("ticker").value.trim();
-      let nome = document.getElementById("nome").value.trim();
-      const corretora = document.getElementById("corretora").value;
-      const valor = parseFloat(document.getElementById("valor").value.replace(",", "."));
-      const quantidadeRaw = document.getElementById("quantidade").value.replace(",", ".");
-      const precoRaw = document.getElementById("preco").value.replace(",", ".");
-      let quantidade = quantidadeRaw ? parseFloat(quantidadeRaw) : null;
-      let preco = precoRaw ? parseFloat(precoRaw) : null;
+      const tdNome = document.createElement("td");
+      tdNome.textContent = inv.nome || "-";
 
-      if (!valor || isNaN(valor)) {
-        alert("Informe o valor aplicado total.");
-        return;
-      }
+      const tdCorretora = document.createElement("td");
+      tdCorretora.textContent = inv.corretora || "-";
 
-      if ((tipo === "acao" || tipo === "fundo" || tipo === "cripto") && (!quantidade || isNaN(quantidade))) {
-        alert("Para ações, fundos e cripto informe a quantidade.");
-        return;
-      }
+      const tdQtd = document.createElement("td");
+      tdQtd.textContent = quantidade ? quantidade : "-";
 
-      setStatus("Validando ticker...", "");
+      const tdPM = document.createElement("td");
+      tdPM.textContent = formatCurrency(precoMedio);
 
-      const valida = await validarTicker(tipo, ticker);
-      if (!valida.valido) {
-        alert(valida.msg || "Erro ao validar o ticker. Verifique o código informado.");
-        setStatus(valida.msg || "Erro ao validar o ticker.", "error");
-        return;
-      }
+      const tdPrecoAtual = document.createElement("td");
+      tdPrecoAtual.textContent = formatCurrency(precoAtual);
 
-      // Se a API trouxe nome e o campo nome estiver vazio, preenche automático
-      if (!nome && valida.nomeApi) {
-        nome = valida.nomeApi;
-      }
+      const tdAplicado = document.createElement("td");
+      tdAplicado.textContent = formatCurrency(valorAplicado);
 
-      // Se a API trouxe preço e o campo preço estiver vazio, usa o da API
-      if (!preco && valida.preco) {
-        preco = valida.preco;
-      }
+      const tdValorAtual = document.createElement("td");
+      tdValorAtual.textContent = formatCurrency(valorAtual);
 
-      // Se quantidade não foi informada para renda fixa, define como 1
-      if ((!quantidade || isNaN(quantidade)) && tipo === "renda_fixa") {
-        quantidade = 1;
-      }
+      const tdPL = document.createElement("td");
+      tdPL.textContent = formatPercent(plPercent);
 
-      investimentos.push({
-        tipo,
-        ticker: ticker || null,
-        nome: nome || ticker || "",
-        corretora,
-        valor,
-        quantidade,
-        preco,
-        criadoEm: new Date().toISOString(),
-      });
+      const tdAcoes = document.createElement("td");
+      const btnDel = document.createElement("button");
+      btnDel.textContent = "Excluir";
+      btnDel.className = "danger-btn";
+      btnDel.onclick = () => {
+        investimentos.splice(index, 1);
+        salvarDados(investimentos);
+        render();
+      };
+      tdAcoes.appendChild(btnDel);
 
-      salvarDados(investimentos);
-	  
-	  // Pop-up de confirmação
-      alert("Lançamento adicionado com sucesso!");
+      tr.appendChild(tdTipo);
+      tr.appendChild(tdTicker);
+      tr.appendChild(tdNome);
+      tr.appendChild(tdCorretora);
+      tr.appendChild(tdQtd);
+      tr.appendChild(tdPM);
+      tr.appendChild(tdPrecoAtual);
+      tr.appendChild(tdAplicado);
+      tr.appendChild(tdValorAtual);
+      tr.appendChild(tdPL);
+      tr.appendChild(tdAcoes);
 
-      // Limpar campos
-      document.getElementById("ticker").value = "";
-      document.getElementById("nome").value = "";
-      document.getElementById("valor").value = "";
-      document.getElementById("quantidade").value = "";
-      document.getElementById("preco").value = "";
-
-      render();
-      setStatus("Lançamento adicionado com sucesso.", "success");
+      tbody.appendChild(tr);
     });
 
-    async function atualizarPrecosMercado() {
-      if (!investimentos.length) {
-        setStatus("Nenhum investimento para atualizar.", "");
-        return;
+    const totaisDiv = document.getElementById("totais");
+    totaisDiv.innerHTML = "";
+
+    let totalCarteira = 0;
+
+    Object.entries(totais).forEach(([tipo, obj]) => {
+      if (obj.aplicado > 0 || obj.atual > 0) {
+        const span = document.createElement("span");
+        totalCarteira += obj.atual;
+        const plTipo = obj.aplicado
+          ? ((obj.atual - obj.aplicado) / obj.aplicado) * 100
+          : null;
+
+        span.textContent = `${labelTipo(tipo)} | Aplicado: ${formatCurrency(
+          obj.aplicado
+        )} | Atual: ${formatCurrency(obj.atual)} | P/L: ${formatPercent(
+          plTipo
+        )}`;
+        totaisDiv.appendChild(span);
       }
+    });
 
-      setStatus("Atualizando preços de mercado...", "");
+    if (totalCarteira > 0) {
+      const spanTotal = document.createElement("span");
+      spanTotal.style.marginTop = "6px";
+      spanTotal.style.fontWeight = "600";
+      spanTotal.textContent =
+        "Total da carteira (valor atual): " + formatCurrency(totalCarteira);
+      totaisDiv.appendChild(spanTotal);
+    }
+  }
 
-      let atualizados = 0;
+  async function validarTicker(tipo, ticker) {
+    const upper = ticker.toUpperCase().trim();
+    if (
+      !upper &&
+      (tipo === "acao" || tipo === "fundo" || tipo === "cripto")
+    ) {
+      return {
+        valido: false,
+        msg: "Informe um ticker para esse tipo de ativo.",
+      };
+    }
 
-      for (let inv of investimentos) {
-        if (!inv.ticker) continue;
+    if (tipo === "cripto") {
+      const info = MAPA_CRIPTO[upper];
+      if (!info) {
+        return {
+          valido: false,
+          msg: "Ticker de cripto não mapeado. Adicione no código ou corrija o ticker.",
+        };
+      }
+      const res = await buscarPrecoCripto(upper);
+      if (!res.valido) {
+        return {
+          valido: false,
+          msg: "Não foi possível validar o ticker de cripto. Verifique o código.",
+        };
+      }
+      return {
+        valido: true,
+        preco: res.preco,
+        nomeApi: res.nomeApi,
+      };
+    }
 
-        if (inv.tipo === "cripto") {
-          const res = await buscarPrecoCripto(inv.ticker);
-          if (res.valido && res.preco != null) {
-            inv.preco = res.preco;
-            if (!inv.nome && res.nomeApi) {
-              inv.nome = res.nomeApi;
-            }
-            atualizados++;
+    if (tipo === "acao" || tipo === "fundo") {
+      const res = await buscarPrecoAcaoOuFundo(upper);
+      if (!res.valido) {
+        return {
+          valido: false,
+          msg: "Ticker de ação/fundo não encontrado. Verifique o código (ex.: PETR4, IVVB11, JURO11).",
+        };
+      }
+      return {
+        valido: true,
+        preco: res.preco,
+        nomeApi: res.nomeApi,
+      };
+    }
+
+    // Renda fixa: ticker opcional, não valida
+    return { valido: true, preco: null, nomeApi: null };
+  }
+
+  document.getElementById("addBtn").addEventListener("click", async () => {
+    const tipo = document.getElementById("tipo").value;
+    const ticker = document.getElementById("ticker").value.trim();
+    let nome = document.getElementById("nome").value.trim();
+    const corretora = document.getElementById("corretora").value;
+    const valor = parseFloat(
+      document.getElementById("valor").value.replace(",", ".")
+    );
+    const quantidadeRaw = document
+      .getElementById("quantidade")
+      .value.replace(",", ".");
+    const precoRaw = document
+      .getElementById("preco")
+      .value.replace(",", ".");
+    let quantidade = quantidadeRaw ? parseFloat(quantidadeRaw) : null;
+    let preco = precoRaw ? parseFloat(precoRaw) : null;
+
+    if (!valor || isNaN(valor)) {
+      alert("Informe o valor aplicado total.");
+      return;
+    }
+
+    if (
+      (tipo === "acao" || tipo === "fundo" || tipo === "cripto") &&
+      (!quantidade || isNaN(quantidade))
+    ) {
+      alert("Para ações, fundos e cripto informe a quantidade.");
+      return;
+    }
+
+    setStatus("Validando ticker...", "");
+
+    const valida = await validarTicker(tipo, ticker);
+    if (!valida.valido) {
+      alert(
+        valida.msg || "Erro ao validar o ticker. Verifique o código informado."
+      );
+      setStatus(
+        valida.msg || "Erro ao validar o ticker.",
+        "error"
+      );
+      return;
+    }
+
+    // Se a API trouxe nome e o campo nome estiver vazio, preenche automático
+    if (!nome && valida.nomeApi) {
+      nome = valida.nomeApi;
+    }
+
+    // Se a API trouxe preço e o campo preço estiver vazio, usa o da API
+    if (!preco && valida.preco) {
+      preco = valida.preco;
+    }
+
+    // Se quantidade não foi informada para renda fixa, define como 1
+    if ((!quantidade || isNaN(quantidade)) && tipo === "renda_fixa") {
+      quantidade = 1;
+    }
+
+    investimentos.push({
+      tipo,
+      ticker: ticker || null,
+      nome: nome || ticker || "",
+      corretora,
+      valor,
+      quantidade,
+      preco,
+      criadoEm: new Date().toISOString(),
+    });
+
+    salvarDados(investimentos);
+
+    // Pop-up de confirmação
+    alert("Lançamento adicionado com sucesso!");
+
+    // Limpar campos
+    document.getElementById("ticker").value = "";
+    document.getElementById("nome").value = "";
+    document.getElementById("valor").value = "";
+    document.getElementById("quantidade").value = "";
+    document.getElementById("preco").value = "";
+
+    render();
+    setStatus("Lançamento adicionado com sucesso.", "success");
+  });
+
+  async function atualizarPrecosMercado() {
+    if (!investimentos.length) {
+      setStatus("Nenhum investimento para atualizar.", "");
+      return;
+    }
+
+    setStatus("Atualizando preços de mercado...", "");
+
+    let atualizados = 0;
+
+    for (let inv of investimentos) {
+      if (!inv.ticker) continue;
+
+      if (inv.tipo === "cripto") {
+        const res = await buscarPrecoCripto(inv.ticker);
+        if (res.valido && res.preco != null) {
+          inv.preco = res.preco;
+          if (!inv.nome && res.nomeApi) {
+            inv.nome = res.nomeApi;
           }
-        } else if (inv.tipo === "acao" || inv.tipo === "fundo") {
-          const res = await buscarPrecoAcaoOuFundo(inv.ticker);
-          if (res.valido && res.preco != null) {
-            inv.preco = res.preco;
-            if (!inv.nome && res.nomeApi) {
-              inv.nome = res.nomeApi;
-            }
-            atualizados++;
-          }
-        } else {
-          continue;
+          atualizados++;
         }
-      }
-
-      salvarDados(investimentos);
-      render();
-
-      if (atualizados > 0) {
-        setStatus(`Preços atualizados para ${atualizados} ativo(s).`, "success");
+      } else if (inv.tipo === "acao" || inv.tipo === "fundo") {
+        const res = await buscarPrecoAcaoOuFundo(inv.ticker);
+        if (res.valido && res.preco != null) {
+          inv.preco = res.preco;
+          if (!inv.nome && res.nomeApi) {
+            inv.nome = res.nomeApi;
+          }
+          atualizados++;
+        }
       } else {
-        setStatus("Não foi possível atualizar os preços. Verifique tickers ou tente novamente depois.", "error");
+        continue;
       }
     }
 
-    document.getElementById("updatePricesBtn").addEventListener("click", () => {
+    salvarDados(investimentos);
+    render();
+
+    if (atualizados > 0) {
+      setStatus(
+        `Preços atualizados para ${atualizados} ativo(s).`,
+        "success"
+      );
+    } else {
+      setStatus(
+        "Não foi possível atualizar os preços. Verifique tickers ou tente novamente depois.",
+        "error"
+      );
+    }
+  }
+
+  document
+    .getElementById("updatePricesBtn")
+    .addEventListener("click", () => {
       atualizarPrecosMercado();
     });
 
-
-function setActiveTab(tab) {
-  // Botões
-  document.querySelectorAll(".tab-btn").forEach(b => {
-    const bTab = b.getAttribute("data-tab");
-    if (bTab === tab) {
-      b.classList.add("active");
-    } else {
-      b.classList.remove("active");
-    }
-  });
-
-  // Conteúdos
-  document.querySelectorAll(".tab-content").forEach(c => {
-    if (c.id === "tab-" + tab) {
-      c.classList.add("active");
-    } else {
-      c.classList.remove("active");
-    }
-  });
-
-  // Salva aba atual
-  try {
-    localStorage.setItem(TAB_STORAGE_KEY, tab);
-  } catch (e) {
-    console.warn("Não foi possível salvar aba atual:", e);
-  }
-}
-
-
-// Lógica das abas
-document.querySelectorAll(".tab-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const tab = btn.getAttribute("data-tab");
-    setActiveTab(tab);
-  });
-});
-
-// Ao carregar a página, restaura a última aba usada
-let abaSalva = "cadastro";
-try {
-  const stored = localStorage.getItem(TAB_STORAGE_KEY);
-  if (stored === "cadastro" || stored === "lancamentos") {
-    abaSalva = stored;
-  }
-} catch (e) {
-  console.warn("Não foi possível ler aba salva:", e);
-}
-setActiveTab(abaSalva);
-
-    // Render inicial + versão no rodapé
-    render();
-    atualizarRodape();
-	// Depois de renderizar com o que tem localmente,
-// tenta sincronizar com a nuvem (se houver dados lá).
-async function sincronizarComNuvemAoAbrir() {
-  try {
-    const resp = await fetch(
-      `${PROXY_BASE_URL}/data?userId=${encodeURIComponent(USER_ID)}&userKey=${encodeURIComponent(USER_KEY)`
-    );
-    if (!resp.ok) {
-      console.error("Falha ao carregar da nuvem:", resp.status);
-      return;
-    }
-    const json = await resp.json();
-    if (Array.isArray(json.data)) {
-      investimentos = json.data;
-      salvarDadosLocal(investimentos); // cache local atualizado
-      render();
-      setStatus("Dados sincronizados da nuvem.", "success");
-    }
-  } catch (e) {
-    console.error("Erro ao sincronizar com a nuvem:", e);
-  }
-}
-
-// chama a sincronização inicial
-sincronizarComNuvemAoAbrir();
-
-
-    // PULL TO REFRESH (arrastar para baixo para recarregar a página)
-    let startY = 0;
-    let puxando = false;
-    const mensagemPTR = document.getElementById("ptr-message");
-
-    window.addEventListener("touchstart", (e) => {
-      if (window.scrollY === 0) {
-        startY = e.touches[0].clientY;
-        puxando = true;
-      }
-    });
-
-    window.addEventListener("touchmove", (e) => {
-      if (!puxando) return;
-
-      const atualY = e.touches[0].clientY;
-      const distancia = atualY - startY;
-
-      if (distancia > 50) {
-        mensagemPTR.style.display = "block";
+  function setActiveTab(tab) {
+    // Botões
+    document.querySelectorAll(".tab-btn").forEach((b) => {
+      const bTab = b.getAttribute("data-tab");
+      if (bTab === tab) {
+        b.classList.add("active");
       } else {
-        mensagemPTR.style.display = "none";
+        b.classList.remove("active");
       }
     });
 
-    window.addEventListener("touchend", (e) => {
-      if (!puxando) return;
-      puxando = false;
+    // Conteúdos
+    document.querySelectorAll(".tab-content").forEach((c) => {
+      if (c.id === "tab-" + tab) {
+        c.classList.add("active");
+      } else {
+        c.classList.remove("active");
+      }
+    });
 
-      const endY = e.changedTouches[0].clientY;
-      const distancia = endY - startY;
+    // Salva aba atual
+    try {
+      localStorage.setItem(TAB_STORAGE_KEY, tab);
+    } catch (e) {
+      console.warn("Não foi possível salvar aba atual:", e);
+    }
+  }
 
+  // Lógica das abas
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tab = btn.getAttribute("data-tab");
+      setActiveTab(tab);
+    });
+  });
+
+  // Ao carregar a página, restaura a última aba usada
+  let abaSalva = "cadastro";
+  try {
+    const stored = localStorage.getItem(TAB_STORAGE_KEY);
+    if (stored === "cadastro" || stored === "lancamentos") {
+      abaSalva = stored;
+    }
+  } catch (e) {
+    console.warn("Não foi possível ler aba salva:", e);
+  }
+  setActiveTab(abaSalva);
+
+  // Render inicial + versão no rodapé
+  render();
+  atualizarRodape();
+
+  // Depois de renderizar com o que tem localmente,
+  // tenta sincronizar com a nuvem (se houver dados lá).
+  async function sincronizarComNuvemAoAbrir() {
+    try {
+      const resp = await fetch(
+        `${PROXY_BASE_URL}/data?userId=${encodeURIComponent(
+          USER_ID
+        )}&userKey=${encodeURIComponent(USER_KEY)}`
+      );
+      if (!resp.ok) {
+        console.error("Falha ao carregar da nuvem:", resp.status);
+        return;
+      }
+      const json = await resp.json();
+      if (Array.isArray(json.data)) {
+        investimentos = json.data;
+        salvarDadosLocal(investimentos); // cache local atualizado
+        render();
+        setStatus("Dados sincronizados da nuvem.", "success");
+      }
+    } catch (e) {
+      console.error("Erro ao sincronizar com a nuvem:", e);
+    }
+  }
+
+  // chama a sincronização inicial
+  sincronizarComNuvemAoAbrir();
+
+  // PULL TO REFRESH (arrastar para baixo para recarregar a página)
+  let startY = 0;
+  let puxando = false;
+  const mensagemPTR = document.getElementById("ptr-message");
+
+  window.addEventListener("touchstart", (e) => {
+    if (window.scrollY === 0) {
+      startY = e.touches[0].clientY;
+      puxando = true;
+    }
+  });
+
+  window.addEventListener("touchmove", (e) => {
+    if (!puxando) return;
+
+    const atualY = e.touches[0].clientY;
+    const distancia = atualY - startY;
+
+    if (distancia > 50) {
+      mensagemPTR.style.display = "block";
+    } else {
       mensagemPTR.style.display = "none";
+    }
+  });
 
-      if (distancia > 80) {
-        // Recarrega a página; ao recarregar, versão continua a mesma (APP_VERSION)
-        location.reload();
-      }
-    });
-  </script>
+  window.addEventListener("touchend", (e) => {
+    if (!puxando) return;
+    puxando = false;
+
+    const endY = e.changedTouches[0].clientY;
+    const distancia = endY - startY;
+
+    mensagemPTR.style.display = "none";
+
+    if (distancia > 80) {
+      // Recarrega a página; ao recarregar, versão continua a mesma (APP_VERSION)
+      location.reload();
+    }
+  });
+</script>
 </body>
 </html>
