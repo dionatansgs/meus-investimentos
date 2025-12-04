@@ -254,6 +254,7 @@
 
   <script>
     const STORAGE_KEY = "meus_investimentos_v3";
+	const APP_VERSION = "Atualizado em 04/12/2025 13:52"; 
 
     function carregarDados() {
       try {
@@ -299,18 +300,8 @@
 
     // Atualiza rodapé com data/hora da última atualização
     function atualizarRodape() {
-      const agora = new Date();
-      const formato = agora.toLocaleString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
-      });
-
-      const footer = document.getElementById("footerAtualizacao");
-      footer.textContent = "Última atualização: " + formato;
+        const footer = document.getElementById("footerAtualizacao");
+		footer.textContent = "Última versão da aplicação: " + APP_VERSION;
     }
 
     // MAPA CRIPTO (ticker -> {id, nome})
