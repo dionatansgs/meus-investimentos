@@ -255,13 +255,14 @@
 
   <script>
     // 👍 Ajuste aqui quando fizer uma nova versão do app
-    const APP_VERSION = "v0.2 — 04/12/2025";
+    const APP_VERSION = "v0.3 — 04/12/2025 - Users";
 	const TAB_STORAGE_KEY = "meus_investimentos_tab";
 
     // 👍 Troque pela URL do SEU Worker (proxy Cloudflare)
     // Exemplo: "https://meu-proxy.dionatan.workers.dev"
     const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev";
-	const USER_ID = "dionatan-default";
+	const USER_ID  = "dionatan";        // id definido no admin
+	const USER_KEY = "f3a0c0a8b7...";   // apiKey retornada na criação
 	
     const STORAGE_KEY = "meus_investimentos_v3";
 
@@ -284,7 +285,7 @@ function salvarDadosLocal(dados) {
 // salva na nuvem (Worker + KV) – não precisa await em todo lugar
 async function salvarDadosNuvem(dados) {
   try {
-    await fetch(`${PROXY_BASE_URL}/data?user=${encodeURIComponent(USER_ID)}`, {
+    await fetch(`${PROXY_BASE_URL}/data?userId=${encodeURIComponent(USER_ID)}&userKey=${encodeURIComponent(USER_KEY)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(dados),
@@ -760,7 +761,7 @@ setActiveTab(abaSalva);
 async function sincronizarComNuvemAoAbrir() {
   try {
     const resp = await fetch(
-      `${PROXY_BASE_URL}/data?user=${encodeURIComponent(USER_ID)}`
+      `${PROXY_BASE_URL}/data?userId=${encodeURIComponent(USER_ID)}&userKey=${encodeURIComponent(USER_KEY)`
     );
     if (!resp.ok) {
       console.error("Falha ao carregar da nuvem:", resp.status);
