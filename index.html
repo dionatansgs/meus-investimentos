@@ -573,10 +573,14 @@
       setStatus("Validando ticker...", "");
 
       const valida = await validarTicker(tipo, ticker);
-      if (!valida.valido) {
-        setStatus(valida.msg, "error");
-        return;
-      }
+		if (!valida.valido) {
+		  // Mostra pop-up com erro
+		  alert(valida.msg || "Erro ao validar o ticker. Verifique o código informado.");
+
+		  // Também mantém a mensagem na área de status da aba Lançamentos
+		  setStatus(valida.msg || "Erro ao validar o ticker.", "error");
+		  return;
+		}
 
       // Se a API trouxe nome e o campo nome estiver vazio, preenche automático
       if (!nome && valida.nomeApi) {
