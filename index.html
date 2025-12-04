@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meus Investimentos</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #f4f4f4;
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 12px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      margin-bottom: 16px;
+    }
+    label {
+      font-size: 0.85rem;
+      display: block;
+      margin-bottom: 4px;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+    }
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    #addBtn {
+      background: #0f766e;
+      color: #fff;
+      width: 100%;
+      margin-top: 4px;
+    }
+    #addBtn:active {
+      opacity: 0.8;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    th, td {
+      padding: 6px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+    th {
+      font-weight: 600;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+    }
+    .tipo-renda_fixa { background: #e0f2fe; }
+    .tipo-fundo      { background: #fef9c3; }
+    .tipo-cripto     { background: #fee2e2; }
+    .tipo-acao       { background: #dcfce7; }
+    .totais span {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+    }
+    .danger-btn {
+      background: #fee2e2;
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Meus Investimentos</h1>
+
+  <div class="card">
+    <h2 style="font-size:1rem; margin-top:0;">Novo lançamento</h2>
+    <label for="tipo">Tipo</label>
+    <select id="tipo">
+      <option value="renda_fixa">Renda fixa</option>
+      <option value="fundo">Fundo</option>
+      <option value="cripto">Criptoativo</option>
+      <option value="acao">Ação</option>
+    </select>
+
+    <label for="nome">Nome do ativo</label>
+    <input id="nome" placeholder="Ex.: Tesouro IPCA 2029, IVVB11, BTC..." />
+
+    <label for="corretora">Corretora / Banco</label>
+    <input id="corretora" placeholder="Ex.: Nubank, XP, Binance..." />
+
+    <label for="valor">Valor aplicado (R$)</label>
+    <input id="valor" type="number" step="0.01" inputmode="decimal" />
+
+    <label for="quantidade">Quantidade (opcional)</label>
+    <input id="quantidade" type="number" step="0.0001" inputmode="decimal" />
+
+    <label for="preco">Preço atual (R$) – opcional</label>
+    <input id="preco" type="number" step="0.01" inputmode="decimal" />
+
+    <button id="addBtn">Adicionar</button>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:1rem; margin-top:0;">Totais</h2>
+    <div class="totais" id="totais"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:1rem; margin-top:0;">Lançamentos</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Tipo</th>
+          <th>Ativo</th>
+          <th>Corretora</th>
+          <th>Aplicado</th>
+          <th>Valor atual</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="lista"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "meus_investimentos_v1";
+
+    function carregarDados() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        console.error(e);
+        return [];
+      }
+    }
+
+    function salvarDados(dados) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
+    }
+
+    let investimentos = carregarDados();
+
+    function formatCurrency(v) {
+      if (v == null || isNaN(v)) return "-";
+      return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    }
+
+    function labelTipo(tipo) {
+      switch (tipo) {
+        case "renda_fixa": return "Renda fixa";
+        case "fundo":      return "Fundo";
+        case "cripto":     return "Cripto";
+        case "acao":       return "Ação";
+        default:           return tipo;
+      }
+    }
+
+    function render() {
+      const tbody = document.getElementById("lista");
+      tbody.innerHTML = "";
+
+      const totaisPorTipo = {
+        renda_fixa: 0,
+        fundo: 0,
+        cripto: 0,
+        acao: 0,
+      };
+
+      investimentos.forEach((inv, index) => {
+        totaisPorTipo[inv.tipo] = (totaisPorTipo[inv.tipo] || 0) + inv.valor;
+
+        const tr = document.createElement("tr");
+
+        const tdTipo = document.createElement("td");
+        const span = document.createElement("span");
+        span.textContent = labelTipo(inv.tipo);
+        span.className = "badge tipo-" + inv.tipo;
+        tdTipo.appendChild(span);
+
+        const tdNome = document.createElement("td");
+        tdNome.textContent = inv.nome;
+
+        const tdCorretora = document.createElement("td");
+        tdCorretora.textContent = inv.corretora;
+
+        const tdValor = document.createElement("td");
+        tdValor.textContent = formatCurrency(inv.valor);
+
+        const tdAtual = document.createElement("td");
+        const valorAtual = inv.preco && inv.quantidade
+          ? inv.preco * inv.quantidade
+          : null;
+        tdAtual.textContent = formatCurrency(valorAtual);
+
+        const tdAcoes = document.createElement("td");
+        const btnDel = document.createElement("button");
+        btnDel.textContent = "Excluir";
+        btnDel.className = "danger-btn";
+        btnDel.onclick = () => {
+          investimentos.splice(index, 1);
+          salvarDados(investimentos);
+          render();
+        };
+        tdAcoes.appendChild(btnDel);
+
+        tr.appendChild(tdTipo);
+        tr.appendChild(tdNome);
+        tr.appendChild(tdCorretora);
+        tr.appendChild(tdValor);
+        tr.appendChild(tdAtual);
+        tr.appendChild(tdAcoes);
+
+        tbody.appendChild(tr);
+      });
+
+      const totaisDiv = document.getElementById("totais");
+      totaisDiv.innerHTML = "";
+      Object.entries(totaisPorTipo).forEach(([tipo, total]) => {
+        if (total > 0) {
+          const span = document.createElement("span");
+          span.textContent = `${labelTipo(tipo)}: ${formatCurrency(total)}`;
+          totaisDiv.appendChild(span);
+        }
+      });
+    }
+
+    document.getElementById("addBtn").addEventListener("click", () => {
+      const tipo = document.getElementById("tipo").value;
+      const nome = document.getElementById("nome").value.trim();
+      const corretora = document.getElementById("corretora").value.trim();
+      const valor = parseFloat(document.getElementById("valor").value.replace(",", "."));
+      const quantidadeRaw = document.getElementById("quantidade").value.replace(",", ".");
+      const precoRaw = document.getElementById("preco").value.replace(",", ".");
+      const quantidade = quantidadeRaw ? parseFloat(quantidadeRaw) : null;
+      const preco = precoRaw ? parseFloat(precoRaw) : null;
+
+      if (!nome || isNaN(valor)) {
+        alert("Preencha pelo menos o nome do ativo e o valor aplicado.");
+        return;
+      }
+
+      investimentos.push({
+        tipo,
+        nome,
+        corretora,
+        valor,
+        quantidade,
+        preco,
+        criadoEm: new Date().toISOString(),
+      });
+
+      salvarDados(investimentos);
+
+      // Limpar campos principais
+      document.getElementById("nome").value = "";
+      document.getElementById("corretora").value = "";
+      document.getElementById("valor").value = "";
+      document.getElementById("quantidade").value = "";
+      document.getElementById("preco").value = "";
+
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
