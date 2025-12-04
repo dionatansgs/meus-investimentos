@@ -10,6 +10,7 @@
       margin: 0;
       padding: 16px;
       background: #f4f4f4;
+      overscroll-behavior-y: contain; /* ajuda no pull-to-refresh customizado */
     }
     h1 {
       font-size: 1.4rem;
@@ -140,32 +141,20 @@
     .status.success {
       color: #15803d;
     }
+
+    /* Mensagem visual do pull-to-refresh */
+    #ptr-message {
+      text-align: center;
+      padding: 10px;
+      font-size: 0.8rem;
+      color: #6b7280;
+      display: none;
+    }
   </style>
-  <style>
-  body {
-    overscroll-behavior-y: contain; /* evita refresh do Safari interferir */
-  }
-  #ptr-message {
-    text-align: center;
-    padding: 10px;
-    font-size: 0.8rem;
-    color: #6b7280;
-    display: none;
-  }
-</style>
-<div id="ptr-message">↻ Solte para atualizar...</div>
 </head>
-  <footer id="footerAtualizacao" style="
-  text-align:center;
-  font-size:0.75rem;
-  color:#6b7280;
-  margin-top:20px;
-  padding-top:10px;
-  border-top:1px solid #e5e7eb;
-">
-  Última atualização: carregando...
-</footer>
 <body>
+  <div id="ptr-message">↻ Solte para atualizar...</div>
+
   <h1>Meus Investimentos</h1>
 
   <!-- Abas -->
@@ -190,7 +179,7 @@
       <label for="ticker">Ticker / Código (para preço e validação)</label>
       <input id="ticker" placeholder="Ex.: PETR4, IVVB11, BTC, ETH..." />
 
-      <label for="nome">Nome do ativo</label>
+      <label for="nome">Nome do ativo (deixa em branco para preencher automático)</label>
       <input id="nome" placeholder="Se vazio, usa o nome retornado pela API" />
 
       <label for="corretora">Corretora / Banco</label>
@@ -251,6 +240,17 @@
     </div>
   </div>
 
+  <!-- Rodapé com data/hora da última atualização -->
+  <footer id="footerAtualizacao" style="
+    text-align:center;
+    font-size:0.75rem;
+    color:#6b7280;
+    margin-top:20px;
+    padding-top:10px;
+    border-top:1px solid #e5e7eb;
+  ">
+    Última atualização: carregando...
+  </footer>
 
   <script>
     const STORAGE_KEY = "meus_investimentos_v3";
@@ -264,21 +264,6 @@
         return [];
       }
     }
-	
-	function atualizarRodape() {
-  const agora = new Date();
-  const formato = agora.toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  });
-
-  const footer = document.getElementById("footerAtualizacao");
-  footer.textContent = "Última atualização: " + formato;
-}
 
     function salvarDados(dados) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
@@ -310,6 +295,22 @@
       const el = document.getElementById("status");
       el.textContent = msg || "";
       el.className = "status" + (type ? " " + type : "");
+    }
+
+    // Atualiza rodapé com data/hora da última atualização
+    function atualizarRodape() {
+      const agora = new Date();
+      const formato = agora.toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+
+      const footer = document.getElementById("footerAtualizacao");
+      footer.textContent = "Última atualização: " + formato;
     }
 
     // MAPA CRIPTO (ticker -> {id, nome})
@@ -459,7 +460,7 @@
           investimentos.splice(index, 1);
           salvarDados(investimentos);
           render();
-		  atualizarRodape();
+          atualizarRodape();
         };
         tdAcoes.appendChild(btnDel);
 
@@ -622,6 +623,7 @@
       document.getElementById("preco").value = "";
 
       render();
+      atualizarRodape();
       setStatus("Lançamento adicionado com sucesso.", "success");
     });
 
@@ -663,7 +665,7 @@
 
       salvarDados(investimentos);
       render();
-	  atualizarRodape();
+      atualizarRodape();
 
       if (atualizados > 0) {
         setStatus(`Preços atualizados para ${atualizados} ativo(s).`, "success");
@@ -689,47 +691,49 @@
       });
     });
 
+    // Render inicial e atualização de rodapé
     render();
-	// PULL TO REFRESH (ARRASTAR PARA BAIXO PARA ATUALIZAR)
-let startY = 0;
-let puxando = false;
-const mensagemPTR = document.getElementById("ptr-message");
+    atualizarRodape();
 
-window.addEventListener("touchstart", (e) => {
-  if (window.scrollY === 0) {
-    startY = e.touches[0].clientY;
-    puxando = true;
-  }
-});
+    // PULL TO REFRESH (arrastar para baixo para atualizar)
+    let startY = 0;
+    let puxando = false;
+    const mensagemPTR = document.getElementById("ptr-message");
 
-window.addEventListener("touchmove", (e) => {
-  if (!puxando) return;
+    window.addEventListener("touchstart", (e) => {
+      if (window.scrollY === 0) {
+        startY = e.touches[0].clientY;
+        puxando = true;
+      }
+    });
 
-  const atualY = e.touches[0].clientY;
-  const distancia = atualY - startY;
+    window.addEventListener("touchmove", (e) => {
+      if (!puxando) return;
 
-  if (distancia > 50) {
-    mensagemPTR.style.display = "block";
-  } else {
-    mensagemPTR.style.display = "none";
-  }
-});
+      const atualY = e.touches[0].clientY;
+      const distancia = atualY - startY;
 
-window.addEventListener("touchend", (e) => {
-  if (!puxando) return;
-  puxando = false;
+      if (distancia > 50) {
+        mensagemPTR.style.display = "block";
+      } else {
+        mensagemPTR.style.display = "none";
+      }
+    });
 
-  mensagemPTR.style.display = "none";
+    window.addEventListener("touchend", (e) => {
+      if (!puxando) return;
+      puxando = false;
 
-  const endY = e.changedTouches[0].clientY;
-  const distancia = endY - startY;
+      const endY = e.changedTouches[0].clientY;
+      const distancia = endY - startY;
 
-  if (distancia > 80) {
-    atualizarRodape(); // Atualiza a data/hora
-    location.reload(); // Recarrega a página
-  }
-});
+      mensagemPTR.style.display = "none";
 
+      if (distancia > 80) {
+        // Recarrega a página; ao recarregar, o render() e atualizarRodape() rodam de novo
+        location.reload();
+      }
+    });
   </script>
 </body>
 </html>
