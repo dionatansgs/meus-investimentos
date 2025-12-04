@@ -255,29 +255,53 @@
 
   <script>
     // 👍 Ajuste aqui quando fizer uma nova versão do app
-    const APP_VERSION = "v0.1 — 09/12/2025";
+    const APP_VERSION = "v0.2 — 04/12/2025";
 
     // 👍 Troque pela URL do SEU Worker (proxy Cloudflare)
     // Exemplo: "https://meu-proxy.dionatan.workers.dev"
     const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev";
-
+	const USER_ID = "dionatan-default";
+	
     const STORAGE_KEY = "meus_investimentos_v3";
 
-    function carregarDados() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : [];
-      } catch (e) {
-        console.error(e);
-        return [];
-      }
-    }
+// carrega do localStorage (rápido, só pra não ficar vazio)
+function carregarDadosLocal() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+}
 
-    function salvarDados(dados) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
-    }
+// salva no localStorage
+function salvarDadosLocal(dados) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
+}
 
-    let investimentos = carregarDados();
+// salva na nuvem (Worker + KV) – não precisa await em todo lugar
+async function salvarDadosNuvem(dados) {
+  try {
+    await fetch(`${PROXY_BASE_URL}/data?user=${encodeURIComponent(USER_ID)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados),
+    });
+  } catch (e) {
+    console.error("Erro ao salvar na nuvem:", e);
+  }
+}
+
+// função central: salvar sempre local + nuvem
+function salvarDados(dados) {
+  salvarDadosLocal(dados);
+  // dispara a gravação na nuvem em background
+  salvarDadosNuvem(dados);
+}
+
+// inicialmente, carrega só do local (instantâneo)
+let investimentos = carregarDadosLocal();
 
     function formatCurrency(v) {
       if (v == null || isNaN(v)) return "-";
@@ -690,6 +714,32 @@
     // Render inicial + versão no rodapé
     render();
     atualizarRodape();
+	// Depois de renderizar com o que tem localmente,
+// tenta sincronizar com a nuvem (se houver dados lá).
+async function sincronizarComNuvemAoAbrir() {
+  try {
+    const resp = await fetch(
+      `${PROXY_BASE_URL}/data?user=${encodeURIComponent(USER_ID)}`
+    );
+    if (!resp.ok) {
+      console.error("Falha ao carregar da nuvem:", resp.status);
+      return;
+    }
+    const json = await resp.json();
+    if (Array.isArray(json.data)) {
+      investimentos = json.data;
+      salvarDadosLocal(investimentos); // cache local atualizado
+      render();
+      setStatus("Dados sincronizados da nuvem.", "success");
+    }
+  } catch (e) {
+    console.error("Erro ao sincronizar com a nuvem:", e);
+  }
+}
+
+// chama a sincronização inicial
+sincronizarComNuvemAoAbrir();
+
 
     // PULL TO REFRESH (arrastar para baixo para recarregar a página)
     let startY = 0;
