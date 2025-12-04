@@ -52,19 +52,33 @@
     #addBtn:active {
       opacity: 0.8;
     }
+
+    .secondary-btn {
+      background: #e5e7eb;
+      font-size: 0.8rem;
+      padding: 8px 12px;
+      border-radius: 999px;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 0.8rem;
+      min-width: 700px;
     }
     th, td {
       padding: 6px;
       text-align: left;
       border-bottom: 1px solid #eee;
+      white-space: nowrap;
     }
     th {
       font-weight: 600;
     }
+    .table-container {
+      overflow-x: auto;
+    }
+
     .badge {
       display: inline-block;
       padding: 2px 8px;
@@ -75,6 +89,7 @@
     .tipo-fundo      { background: #fef9c3; }
     .tipo-cripto     { background: #fee2e2; }
     .tipo-acao       { background: #dcfce7; }
+
     .totais span {
       display: block;
       font-size: 0.85rem;
@@ -84,12 +99,6 @@
       background: #fee2e2;
       font-size: 0.7rem;
       padding: 4px 8px;
-      border-radius: 999px;
-    }
-    .secondary-btn {
-      background: #e5e7eb;
-      font-size: 0.8rem;
-      padding: 8px 12px;
       border-radius: 999px;
     }
 
@@ -150,27 +159,32 @@
       <label for="tipo">Tipo</label>
       <select id="tipo">
         <option value="renda_fixa">Renda fixa</option>
-        <option value="fundo">Fundo</option>
+        <option value="fundo">Fundo (FII/ETF/Fundo)</option>
         <option value="cripto">Criptoativo</option>
         <option value="acao">Ação</option>
       </select>
 
-      <label for="ticker">Ticker / Código (para preço automático)</label>
+      <label for="ticker">Ticker / Código (para preço e validação)</label>
       <input id="ticker" placeholder="Ex.: PETR4, IVVB11, BTC, ETH..." />
 
-      <label for="nome">Nome do ativo</label>
-      <input id="nome" placeholder="Ex.: Tesouro IPCA 2029, IVVB11, Bitcoin..." />
+      <label for="nome">Nome do ativo (deixa em branco para preencher automático)</label>
+      <input id="nome" placeholder="Se vazio, usa o nome retornado pela API" />
 
       <label for="corretora">Corretora / Banco</label>
-      <input id="corretora" placeholder="Ex.: Nubank, XP, Binance..." />
+      <select id="corretora">
+        <option value="Nubank">Nubank</option>
+        <option value="XP">XP</option>
+        <option value="BTG Pactual">BTG Pactual</option>
+        <option value="Mercado Bitcoin">Mercado Bitcoin</option>
+      </select>
 
-      <label for="valor">Valor aplicado (R$)</label>
+      <label for="valor">Valor aplicado total (R$)</label>
       <input id="valor" type="number" step="0.01" inputmode="decimal" />
 
-      <label for="quantidade">Quantidade (opcional)</label>
+      <label for="quantidade">Quantidade de cotas/moedas</label>
       <input id="quantidade" type="number" step="0.0001" inputmode="decimal" />
 
-      <label for="preco">Preço atual (R$) – opcional (é atualizado depois)</label>
+      <label for="preco">Preço atual (R$) – opcional, será atualizado depois</label>
       <input id="preco" type="number" step="0.01" inputmode="decimal" />
 
       <button id="addBtn">Adicionar</button>
@@ -191,25 +205,31 @@
 
     <div class="card">
       <h2 style="font-size:1rem; margin-top:0;">Lançamentos</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Tipo</th>
-            <th>Ticker</th>
-            <th>Ativo</th>
-            <th>Corretora</th>
-            <th>Aplicado</th>
-            <th>Valor atual</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="lista"></tbody>
-      </table>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Ticker</th>
+              <th>Ativo</th>
+              <th>Corretora</th>
+              <th>Qtd</th>
+              <th>Preço médio</th>
+              <th>Preço atual</th>
+              <th>Aplicado</th>
+              <th>Valor atual</th>
+              <th>P/L %</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="lista"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
   <script>
-    const STORAGE_KEY = "meus_investimentos_v2";
+    const STORAGE_KEY = "meus_investimentos_v3";
 
     function carregarDados() {
       try {
@@ -232,6 +252,11 @@
       return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     }
 
+    function formatPercent(v) {
+      if (v == null || isNaN(v)) return "-";
+      return v.toFixed(2).replace(".", ",") + " %";
+    }
+
     function labelTipo(tipo) {
       switch (tipo) {
         case "renda_fixa": return "Renda fixa";
@@ -248,19 +273,109 @@
       el.className = "status" + (type ? " " + type : "");
     }
 
+    // MAPA CRIPTO (ticker -> {id, nome})
+    const MAPA_CRIPTO = {
+      BTC: { id: "bitcoin",  nome: "Bitcoin" },
+      ETH: { id: "ethereum", nome: "Ethereum" },
+      SOL: { id: "solana",   nome: "Solana" },
+      ADA: { id: "cardano",  nome: "Cardano" },
+      XRP: { id: "ripple",   nome: "XRP" },
+      BNB: { id: "binancecoin", nome: "BNB" }
+      // pode adicionar mais aqui
+    };
+
+    async function buscarPrecoCripto(ticker) {
+      if (!ticker) return { preco: null, nomeApi: null, valido: false };
+
+      const upper = ticker.toUpperCase().trim();
+      const info = MAPA_CRIPTO[upper];
+      if (!info) {
+        return { preco: null, nomeApi: null, valido: false };
+      }
+
+      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(info.id)}&vs_currencies=brl`;
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) {
+          return { preco: null, nomeApi: info.nome, valido: false };
+        }
+        const data = await resp.json();
+        const valor = data[info.id]?.brl;
+        const preco = typeof valor === "number" ? valor : null;
+        return {
+          preco,
+          nomeApi: info.nome,
+          valido: true
+        };
+      } catch (e) {
+        console.error("Erro ao buscar cripto:", ticker, e);
+        return { preco: null, nomeApi: info.nome, valido: false };
+      }
+    }
+
+    async function buscarPrecoAcaoOuFundo(ticker) {
+      if (!ticker) return { preco: null, nomeApi: null, valido: false };
+
+      const clean = ticker.toUpperCase().trim();
+      const url = `https://brapi.dev/api/quote/${encodeURIComponent(clean)}`;
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) {
+          return { preco: null, nomeApi: null, valido: false };
+        }
+        const data = await resp.json();
+        const result = data.results && data.results[0];
+        if (!result) {
+          return { preco: null, nomeApi: null, valido: false };
+        }
+        const price = typeof result.regularMarketPrice === "number"
+          ? result.regularMarketPrice
+          : null;
+        const nomeApi = result.longName || result.shortName || null;
+        return {
+          preco: price,
+          nomeApi,
+          valido: true
+        };
+      } catch (e) {
+        console.error("Erro ao buscar ação/fundo:", ticker, e);
+        return { preco: null, nomeApi: null, valido: false };
+      }
+    }
+
     function render() {
       const tbody = document.getElementById("lista");
       tbody.innerHTML = "";
 
-      const totaisPorTipo = {
-        renda_fixa: 0,
-        fundo: 0,
-        cripto: 0,
-        acao: 0,
+      const totais = {
+        renda_fixa: { aplicado: 0, atual: 0 },
+        fundo:      { aplicado: 0, atual: 0 },
+        cripto:     { aplicado: 0, atual: 0 },
+        acao:       { aplicado: 0, atual: 0 },
       };
 
       investimentos.forEach((inv, index) => {
-        totaisPorTipo[inv.tipo] = (totaisPorTipo[inv.tipo] || 0) + inv.valor;
+        const valorAplicado = inv.valor || 0;
+        const quantidade = inv.quantidade || 0;
+        const precoAtual = inv.preco || 0;
+
+        const valorAtual = (quantidade && precoAtual)
+          ? quantidade * precoAtual
+          : (precoAtual || valorAplicado);
+
+        const precoMedio = (quantidade && valorAplicado)
+          ? (valorAplicado / quantidade)
+          : (valorAplicado || null);
+
+        const plValor = (valorAtual || 0) - (valorAplicado || 0);
+        const plPercent = valorAplicado
+          ? (plValor / valorAplicado) * 100
+          : null;
+
+        if (totais[inv.tipo]) {
+          totais[inv.tipo].aplicado += valorAplicado;
+          totais[inv.tipo].atual += valorAtual;
+        }
 
         const tr = document.createElement("tr");
 
@@ -274,19 +389,28 @@
         tdTicker.textContent = inv.ticker || "-";
 
         const tdNome = document.createElement("td");
-        tdNome.textContent = inv.nome;
+        tdNome.textContent = inv.nome || "-";
 
         const tdCorretora = document.createElement("td");
-        tdCorretora.textContent = inv.corretora;
+        tdCorretora.textContent = inv.corretora || "-";
 
-        const tdValor = document.createElement("td");
-        tdValor.textContent = formatCurrency(inv.valor);
+        const tdQtd = document.createElement("td");
+        tdQtd.textContent = quantidade ? quantidade : "-";
 
-        const tdAtual = document.createElement("td");
-        const valorAtual = inv.preco && inv.quantidade
-          ? inv.preco * inv.quantidade
-          : (inv.preco ? inv.preco : null); // se não tiver quantidade, mostra o preço unitário
-        tdAtual.textContent = formatCurrency(valorAtual);
+        const tdPM = document.createElement("td");
+        tdPM.textContent = formatCurrency(precoMedio);
+
+        const tdPrecoAtual = document.createElement("td");
+        tdPrecoAtual.textContent = formatCurrency(precoAtual);
+
+        const tdAplicado = document.createElement("td");
+        tdAplicado.textContent = formatCurrency(valorAplicado);
+
+        const tdValorAtual = document.createElement("td");
+        tdValorAtual.textContent = formatCurrency(valorAtual);
+
+        const tdPL = document.createElement("td");
+        tdPL.textContent = formatPercent(plPercent);
 
         const tdAcoes = document.createElement("td");
         const btnDel = document.createElement("button");
@@ -303,8 +427,12 @@
         tr.appendChild(tdTicker);
         tr.appendChild(tdNome);
         tr.appendChild(tdCorretora);
-        tr.appendChild(tdValor);
-        tr.appendChild(tdAtual);
+        tr.appendChild(tdQtd);
+        tr.appendChild(tdPM);
+        tr.appendChild(tdPrecoAtual);
+        tr.appendChild(tdAplicado);
+        tr.appendChild(tdValorAtual);
+        tr.appendChild(tdPL);
         tr.appendChild(tdAcoes);
 
         tbody.appendChild(tr);
@@ -312,123 +440,131 @@
 
       const totaisDiv = document.getElementById("totais");
       totaisDiv.innerHTML = "";
-      Object.entries(totaisPorTipo).forEach(([tipo, total]) => {
-        if (total > 0) {
+
+      let totalCarteira = 0;
+
+      Object.entries(totais).forEach(([tipo, obj]) => {
+        if (obj.aplicado > 0 || obj.atual > 0) {
           const span = document.createElement("span");
-          span.textContent = `${labelTipo(tipo)}: ${formatCurrency(total)}`;
+          totalCarteira += obj.atual;
+          const plTipo = obj.aplicado
+            ? ((obj.atual - obj.aplicado) / obj.aplicado) * 100
+            : null;
+
+          span.textContent =
+            `${labelTipo(tipo)} | Aplicado: ${formatCurrency(obj.aplicado)} | ` +
+            `Atual: ${formatCurrency(obj.atual)} | P/L: ${formatPercent(plTipo)}`;
           totaisDiv.appendChild(span);
         }
       });
-    }
 
-    // MAPA SIMPLES TICKER -> ID COINGECKO
-    const MAPA_CRIPTO = {
-      BTC: "bitcoin",
-      ETH: "ethereum",
-      SOL: "solana",
-      ADA: "cardano",
-      XRP: "ripple",
-      BNB: "binancecoin"
-      // você pode adicionar mais aqui depois
-    };
-
-    async function buscarPrecoCripto(ticker) {
-      if (!ticker) return null;
-      const upper = ticker.toUpperCase();
-      const id = MAPA_CRIPTO[upper];
-      if (!id) return null;
-
-      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(id)}&vs_currencies=brl`;
-      try {
-        const resp = await fetch(url);
-        if (!resp.ok) return null;
-        const data = await resp.json();
-        const valor = data[id]?.brl;
-        return typeof valor === "number" ? valor : null;
-      } catch (e) {
-        console.error("Erro ao buscar cripto:", ticker, e);
-        return null;
+      if (totalCarteira > 0) {
+        const spanTotal = document.createElement("span");
+        spanTotal.style.marginTop = "6px";
+        spanTotal.style.fontWeight = "600";
+        spanTotal.textContent = `Total da carteira (valor atual): ${formatCurrency(totalCarteira)}`;
+        totaisDiv.appendChild(spanTotal);
       }
     }
 
-    async function buscarPrecoAcaoOuFundo(ticker) {
-      if (!ticker) return null;
-      const clean = ticker.toUpperCase().trim();
-      const url = `https://brapi.dev/api/quote/${encodeURIComponent(clean)}`;
-      try {
-        const resp = await fetch(url);
-        if (!resp.ok) return null;
-        const data = await resp.json();
-        const result = data.results && data.results[0];
-        const price = result?.regularMarketPrice;
-        return typeof price === "number" ? price : null;
-      } catch (e) {
-        console.error("Erro ao buscar ação/fundo:", ticker, e);
-        return null;
-      }
-    }
+    async function validarTicker(tipo, ticker) {
+      const upper = ticker.toUpperCase().trim();
+      if (!upper) return { valido: false, msg: "Informe um ticker." };
 
-    async function atualizarPrecosMercado() {
-      if (!investimentos.length) {
-        setStatus("Nenhum investimento para atualizar.");
-        return;
-      }
-
-      setStatus("Atualizando preços de mercado...", "");
-
-      let atualizados = 0;
-
-      for (let inv of investimentos) {
-        if (!inv.ticker) continue;
-
-        if (inv.tipo === "cripto") {
-          const preco = await buscarPrecoCripto(inv.ticker);
-          if (preco != null) {
-            inv.preco = preco;
-            atualizados++;
-          }
-        } else if (inv.tipo === "acao" || inv.tipo === "fundo") {
-          const preco = await buscarPrecoAcaoOuFundo(inv.ticker);
-          if (preco != null) {
-            inv.preco = preco;
-            atualizados++;
-          }
-        } else {
-          // renda fixa normalmente não tem preço de mercado igual ação/cripto
-          continue;
+      if (tipo === "cripto") {
+        const info = MAPA_CRIPTO[upper];
+        if (!info) {
+          return {
+            valido: false,
+            msg: "Ticker de cripto não mapeado. Adicione no código ou corrija o ticker."
+          };
         }
+        const res = await buscarPrecoCripto(upper);
+        if (!res.valido) {
+          return {
+            valido: false,
+            msg: "Não foi possível validar o ticker de cripto. Verifique o código."
+          };
+        }
+        return {
+          valido: true,
+          preco: res.preco,
+          nomeApi: res.nomeApi
+        };
       }
 
-      salvarDados(investimentos);
-      render();
-
-      if (atualizados > 0) {
-        setStatus(`Preços atualizados para ${atualizados} ativo(s).`, "success");
-      } else {
-        setStatus("Não foi possível atualizar os preços. Pode ser limitação da API ou ticker inválido.", "error");
+      if (tipo === "acao" || tipo === "fundo") {
+        const res = await buscarPrecoAcaoOuFundo(upper);
+        if (!res.valido) {
+          return {
+            valido: false,
+            msg: "Ticker de ação/fundo não encontrado na API. Verifique o código (ex.: PETR4, IVVB11)."
+          };
+        }
+        return {
+          valido: true,
+          preco: res.preco,
+          nomeApi: res.nomeApi
+        };
       }
+
+      // Renda fixa: não valida ticker (é opcional)
+      return { valido: true, preco: null, nomeApi: null };
     }
 
-    document.getElementById("addBtn").addEventListener("click", () => {
+    document.getElementById("addBtn").addEventListener("click", async () => {
       const tipo = document.getElementById("tipo").value;
       const ticker = document.getElementById("ticker").value.trim();
-      const nome = document.getElementById("nome").value.trim();
-      const corretora = document.getElementById("corretora").value.trim();
+      let nome = document.getElementById("nome").value.trim();
+      const corretora = document.getElementById("corretora").value;
       const valor = parseFloat(document.getElementById("valor").value.replace(",", "."));
       const quantidadeRaw = document.getElementById("quantidade").value.replace(",", ".");
       const precoRaw = document.getElementById("preco").value.replace(",", ".");
-      const quantidade = quantidadeRaw ? parseFloat(quantidadeRaw) : null;
-      const preco = precoRaw ? parseFloat(precoRaw) : null;
+      let quantidade = quantidadeRaw ? parseFloat(quantidadeRaw) : null;
+      let preco = precoRaw ? parseFloat(precoRaw) : null;
 
-      if (!nome || isNaN(valor)) {
-        alert("Preencha pelo menos o nome do ativo e o valor aplicado.");
+      if (!valor || isNaN(valor)) {
+        alert("Informe o valor aplicado total.");
         return;
+      }
+
+      if ((tipo === "acao" || tipo === "fundo" || tipo === "cripto") && !ticker) {
+        alert("Para ações, fundos e cripto é obrigatório informar o ticker.");
+        return;
+      }
+
+      if ((tipo === "acao" || tipo === "fundo" || tipo === "cripto") && (!quantidade || isNaN(quantidade))) {
+        alert("Para ações, fundos e cripto informe a quantidade.");
+        return;
+      }
+
+      setStatus("Validando ticker...", "");
+
+      const valida = await validarTicker(tipo, ticker);
+      if (!valida.valido) {
+        setStatus(valida.msg, "error");
+        return;
+      }
+
+      // Se a API trouxe nome e o campo nome estiver vazio, preenche automático
+      if (!nome && valida.nomeApi) {
+        nome = valida.nomeApi;
+      }
+
+      // Se a API trouxe preço e o campo preço estiver vazio, usa o da API
+      if (!preco && valida.preco) {
+        preco = valida.preco;
+      }
+
+      // Se quantidade não foi informada para renda fixa, define como 1
+      if (!quantidade || isNaN(quantidade)) {
+        quantidade = 1;
       }
 
       investimentos.push({
         tipo,
-        ticker,
-        nome,
+        ticker: ticker || null,
+        nome: nome || ticker || "",
         corretora,
         valor,
         quantidade,
@@ -441,14 +577,59 @@
       // Limpar campos
       document.getElementById("ticker").value = "";
       document.getElementById("nome").value = "";
-      document.getElementById("corretora").value = "";
       document.getElementById("valor").value = "";
       document.getElementById("quantidade").value = "";
       document.getElementById("preco").value = "";
 
       render();
-      setStatus("Lançamento adicionado.", "success");
+      setStatus("Lançamento adicionado com sucesso.", "success");
     });
+
+    async function atualizarPrecosMercado() {
+      if (!investimentos.length) {
+        setStatus("Nenhum investimento para atualizar.", "");
+        return;
+      }
+
+      setStatus("Atualizando preços de mercado...", "");
+
+      let atualizados = 0;
+
+      for (let inv of investimentos) {
+        if (!inv.ticker) continue;
+
+        if (inv.tipo === "cripto") {
+          const res = await buscarPrecoCripto(inv.ticker);
+          if (res.valido && res.preco != null) {
+            inv.preco = res.preco;
+            if (!inv.nome && res.nomeApi) {
+              inv.nome = res.nomeApi;
+            }
+            atualizados++;
+          }
+        } else if (inv.tipo === "acao" || inv.tipo === "fundo") {
+          const res = await buscarPrecoAcaoOuFundo(inv.ticker);
+          if (res.valido && res.preco != null) {
+            inv.preco = res.preco;
+            if (!inv.nome && res.nomeApi) {
+              inv.nome = res.nomeApi;
+            }
+            atualizados++;
+          }
+        } else {
+          continue;
+        }
+      }
+
+      salvarDados(investimentos);
+      render();
+
+      if (atualizados > 0) {
+        setStatus(`Preços atualizados para ${atualizados} ativo(s).`, "success");
+      } else {
+        setStatus("Não foi possível atualizar os preços. Verifique tickers ou tente novamente depois.", "error");
+      }
+    }
 
     document.getElementById("updatePricesBtn").addEventListener("click", () => {
       atualizarPrecosMercado();
