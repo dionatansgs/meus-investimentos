@@ -158,32 +158,7 @@
 
   <h1>Meus Investimentos</h1>
   
-  <!-- Configuração de usuário -->
-<div class="card" id="loginCard">
-  <h2 style="font-size:0.95rem; margin-top:0;">Login</h2>
-  <p style="font-size:0.8rem; margin-top:0; color:#6b7280;">
-    Entre com seu <strong>usuário</strong> e <strong>senha</strong>. A conta é criada pelo administrador.
-  </p>
-
-  <label for="loginUserId">Usuário</label>
-  <input id="loginUserId" placeholder="Ex.: dionatan" />
-
-  <label for="loginPassword">Senha</label>
-  <input id="loginPassword" type="password" placeholder="Sua senha" />
-
-  <button id="loginBtn" class="secondary-btn" style="margin-top:8px;">
-    Entrar
-  </button>
-  <button id="logoutBtn" class="secondary-btn" style="margin-top:8px; margin-left:8px;">
-    Sair
-  </button>
-
-  <p id="currentUserInfo" style="font-size:0.8rem; margin-top:8px; color:#4b5563;">
-    Usuário atual: <strong><span id="currentUserLabel">não logado</span></strong>
-  </p>
-</div>
-
-
+  
   <!-- Abas -->
   <div class="tabs">
     <button class="tab-btn active" data-tab="cadastro">Cadastro</button>
@@ -278,6 +253,38 @@
   ">
     Última versão da aplicação: carregando...
   </footer>
+  
+  <!-- Botão discreto para trocar de usuário (por exemplo no topo) -->
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+  <span style="font-size:0.8rem; color:#4b5563;">
+    Usuário atual: <strong><span id="currentUserLabel">não logado</span></strong>
+  </span>
+  <button id="openLoginModalBtn" class="secondary-btn" style="font-size:0.75rem; padding:4px 8px;">
+    Trocar usuário
+  </button>
+</div>
+
+<!-- MODAL DE LOGIN -->
+<div id="loginModal" class="modal-overlay">
+  <div class="modal-content">
+    <h2>Login</h2>
+    <p style="font-size:0.85rem; color:#6b7280; margin-top:4px;">
+      Entre com seu <strong>usuário</strong> e <strong>senha</strong>.
+    </p>
+
+    <label for="modalLoginUserId">Usuário</label>
+    <input id="modalLoginUserId" placeholder="Ex.: dionatan" />
+
+    <label for="modalLoginPassword">Senha</label>
+    <input id="modalLoginPassword" type="password" placeholder="Sua senha" />
+
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+      <button id="modalCancelBtn" class="secondary-btn">Cancelar</button>
+      <button id="modalLoginBtn" class="primary-btn">Entrar</button>
+    </div>
+  </div>
+</div>
+
 
   <script>
   const APP_VERSION = "v0.4 — 04/12/2025";
