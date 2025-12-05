@@ -182,30 +182,6 @@
 </head>
 <body>
 
-<!-- bloqueador que impede interação antes do login (visível enquanto modal aberto) -->
-<div id="appOverlayBlocker"></div>
-
-<!-- Login Modal -->
-<div id="loginModal" class="modal-overlay modal-hidden" role="dialog" aria-modal="true">
-  <div class="modal-content" role="document">
-    <h3>Entrar</h3>
-    <p style="color:#6b7280; margin:6px 0 10px 0;">Faça login para acessar seus investimentos.</p>
-
-    <label>Usuário</label>
-    <input id="modalLoginUserId" placeholder="digite seu usuário" autocomplete="username"/>
-
-    <label style="margin-top:8px;">Senha</label>
-    <input id="modalLoginPassword" type="password" placeholder="sua senha" autocomplete="current-password"/>
-
-    <div style="font-size:0.85rem; color:#6b7280; margin-top:8px;">Senha não é enviada ao servidor para armazenamento de dados — apenas usada para derivar a chave de criptografia local.</div>
-
-    <div class="modal-actions">
-      <button id="modalCancelBtn" class="secondary-btn">Cancelar</button>
-      <button id="modalLoginBtn" class="primary-btn">Entrar</button>
-    </div>
-  </div>
-</div>
-
   <!-- Mensagem do pull-to-refresh -->
   <div id="ptr-message">↻ Solte para atualizar a página...</div>
 
