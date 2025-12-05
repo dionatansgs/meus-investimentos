@@ -1,75 +1,289 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Meus Investimentos — App Seguro</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meus Investimentos</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #f4f4f4;
+      overscroll-behavior-y: contain; /* ajuda no pull-to-refresh customizado */
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 12px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      margin-bottom: 16px;
+    }
+    label {
+      font-size: 0.85rem;
+      display: block;
+      margin-bottom: 4px;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+    }
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    #addBtn {
+      background: #0f766e;
+      color: #fff;
+      width: 100%;
+      margin-top: 4px;
+    }
+    #addBtn:active {
+      opacity: 0.8;
+    }
+
+    .secondary-btn {
+      background: #e5e7eb;
+      font-size: 0.8rem;
+      padding: 8px 12px;
+      border-radius: 999px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      min-width: 700px;
+    }
+    th, td {
+      padding: 6px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+      white-space: nowrap;
+    }
+    th {
+      font-weight: 600;
+    }
+    .table-container {
+      overflow-x: auto;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+    }
+    .tipo-renda_fixa { background: #e0f2fe; }
+    .tipo-fundo      { background: #fef9c3; }
+    .tipo-cripto     { background: #fee2e2; }
+    .tipo-acao       { background: #dcfce7; }
+
+    .totais span {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+    }
+    .danger-btn {
+      background: #fee2e2;
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+
+    /* Abas */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .tab-btn {
+      flex: 1;
+      text-align: center;
+      padding: 8px 0;
+      border-radius: 999px;
+      border: 1px solid #d4d4d8;
+      background: #f4f4f5;
+      font-size: 0.9rem;
+    }
+    .tab-btn.active {
+      background: #0f766e;
+      color: #fff;
+      border-color: #0f766e;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    .status {
+      font-size: 0.8rem;
+      margin-bottom: 6px;
+      color: #4b5563;
+    }
+    .status.error {
+      color: #b91c1c;
+    }
+    .status.success {
+      color: #15803d;
+    }
+
+    /* Mensagem visual do pull-to-refresh */
+    #ptr-message {
+      text-align: center;
+      padding: 10px;
+      font-size: 0.8rem;
+      color: #6b7280;
+      display: none;
+    }
+  </style>
 
 <style>
-  :root{
-    --bg:#f8fafc; --card:#ffffff; --muted:#6b7280; --primary:#065f46; --danger:#dc2626;
-    --radius:12px; --gap:10px;
-  }
-  body{ font-family: Inter, "Helvetica Neue", Arial, sans-serif; background:var(--bg); margin:0; color:#0f172a; -webkit-font-smoothing:antialiased; }
-  .app{ max-width:1100px; margin:18px auto; padding:14px; }
-  header{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
-  h1{ font-size:1.1rem; margin:0; }
-  .secondary-btn, .primary-btn, .danger-btn {
-    border:0; border-radius:10px; padding:8px 12px; cursor:pointer;
-  }
-  .primary-btn{ background:var(--primary); color:#fff; }
-  .secondary-btn{ background:#eef2f3; color:#111; }
-  .danger-btn{ background:var(--danger); color:#fff; }
-
-  /* Layout */
-  .grid{ display:grid; grid-template-columns: 320px 1fr; gap:14px; }
-  .card{ background:var(--card); border-radius:var(--radius); padding:12px; box-shadow:0 6px 20px rgba(2,6,23,0.06); }
-
-  /* Tabs */
-  .tabs { display:flex; gap:8px; margin-bottom:10px; }
-  .tab-btn { background:transparent; border:0; padding:8px 10px; border-radius:10px; cursor:pointer; }
-  .tab-btn.active { background:#e6f4ef; color:var(--primary); font-weight:600; }
-
-  /* Table */
-  table{ width:100%; border-collapse:collapse; font-size:0.9rem; }
-  th, td{ padding:8px 6px; text-align:left; border-bottom:1px solid #eef2f3; vertical-align:middle; }
-  .badge{ padding:6px 8px; border-radius:10px; font-size:0.8rem; display:inline-block; }
-  .tipo-renda_fixa{ background:#f1f5f9; } .tipo-acao{ background:#fff3cd; } .tipo-cripto{ background:#eef2ff; } .tipo-fundo{ background:#f3e8ff; }
-
-  /* Totals */
-  #totais{ display:flex; flex-direction:column; gap:6px; margin-top:10px; font-size:0.9rem; color:var(--muted); }
-
-  /* Footer */
-  footer{ margin-top:12px; text-align:center; color:var(--muted); font-size:0.85rem; }
-
-  /* Modal / blocker */
-  .modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index:9999; }
-  .modal-hidden{ display:none; }
-  .modal-content{ background:#fff; border-radius:14px; padding:18px; width: min(420px, 96%); box-shadow:0 12px 40px rgba(2,6,23,0.15); }
-  .modal-content h3{ margin:0 0 8px 0; font-size:1.05rem; }
-  .modal-content label{ font-size:0.85rem; color:var(--muted); display:block; margin-top:8px; }
-  .modal-content input{ width:100%; padding:8px; border-radius:8px; border:1px solid #e6e9ee; margin-top:6px; }
-
-  /* Toast */
-  .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:20px; background:#111827; color:white; padding:10px 14px; border-radius:10px; opacity:0; transition:opacity .25s; z-index:11000; }
-  .toast.show { opacity:1; }
-
-  /* App overlay blocker while modal open (prevent clicks) */
-  #appOverlayBlocker { position:fixed; inset:0; z-index:900; background:rgba(255,255,255,0.6); display:none; }
-
-  /* pull-to-refresh message */
-  #ptr-message{ position:fixed; top:10px; left:50%; transform:translateX(-50%); background:#064e3b; color:white; padding:6px 10px; border-radius:8px; display:none; z-index:12000; }
-
-  /* small screens */
-  @media (max-width:800px){
-    .grid{ grid-template-columns: 1fr; }
-  }
+/* modal overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.modal-hidden { display: none; }
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 18px;
+  width: min(420px, 96%);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+.modal-content input { width:100%; padding:8px; margin-top:6px; border-radius:8px; border:1px solid #ddd; }
+.modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+.primary-btn { background:#064e3b; color:white; border:none; padding:8px 12px; border-radius:8px; }
+.secondary-btn { background:#e6e6e6; border:none; padding:8px 10px; border-radius:8px; }
+#appOverlayBlocker { position:fixed; inset:0; background:rgba(255,255,255,0.85); z-index:900; display:none; }
 </style>
+
+
 </head>
 <body>
-<div id="appOverlayBlocker"></div>
-<div id="ptr-message">Solte para atualizar</div>
 
+  <!-- Mensagem do pull-to-refresh -->
+  <div id="ptr-message">↻ Solte para atualizar a página...</div>
+
+  <h1>Meus Investimentos</h1>
+  
+  
+  <!-- Abas -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="cadastro">Cadastro</button>
+    <button class="tab-btn" data-tab="lancamentos">Lançamentos</button>
+  </div>
+
+  <!-- ABA CADASTRO -->
+  <div id="tab-cadastro" class="tab-content active">
+    <div class="card">
+      <h2 style="font-size:1rem; margin-top:0;">Novo lançamento</h2>
+
+      <label for="tipo">Tipo</label>
+      <select id="tipo">
+        <option value="renda_fixa">Renda fixa</option>
+        <option value="fundo">Fundo (FII/ETF/Fundo)</option>
+        <option value="cripto">Criptoativo</option>
+        <option value="acao">Ação</option>
+      </select>
+
+      <label for="ticker">Ticker / Código (para preço e validação)</label>
+      <input id="ticker" placeholder="Ex.: PETR4, IVVB11, BTC, ETH..." />
+
+      <label for="nome">Nome do ativo (deixa em branco para preencher automático)</label>
+      <input id="nome" placeholder="Se vazio, usa o nome retornado pela API" />
+
+      <label for="corretora">Corretora / Banco</label>
+      <select id="corretora">
+        <option value="Nubank">Nubank</option>
+        <option value="XP">XP</option>
+        <option value="BTG Pactual">BTG Pactual</option>
+        <option value="Mercado Bitcoin">Mercado Bitcoin</option>
+      </select>
+
+      <label for="valor">Valor aplicado total (R$)</label>
+      <input id="valor" type="number" step="0.01" inputmode="decimal" />
+
+      <label for="quantidade">Quantidade de cotas/moedas</label>
+      <input id="quantidade" type="number" step="0.0001" inputmode="decimal" />
+
+      <label for="preco">Preço atual (R$) – opcional, será atualizado depois</label>
+      <input id="preco" type="number" step="0.01" inputmode="decimal" />
+
+      <button id="addBtn">Adicionar</button>
+    </div>
+  </div>
+
+  <!-- ABA LANÇAMENTOS -->
+  <div id="tab-lancamentos" class="tab-content">
+    <div class="card">
+      <div class="status" id="status"></div>
+      <button id="updatePricesBtn" class="secondary-btn">Atualizar preços de mercado</button>
+    </div>
+
+    <div class="card">
+      <h2 style="font-size:1rem; margin-top:0;">Totais</h2>
+      <div class="totais" id="totais"></div>
+    </div>
+
+    <div class="card">
+      <h2 style="font-size:1rem; margin-top:0;">Lançamentos</h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Ticker</th>
+              <th>Ativo</th>
+              <th>Corretora</th>
+              <th>Qtd</th>
+              <th>Preço médio</th>
+              <th>Preço atual</th>
+              <th>Aplicado</th>
+              <th>Valor atual</th>
+              <th>P/L %</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="lista"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rodapé com versão da aplicação -->
+  <footer id="footerAtualizacao" style="
+    text-align:center;
+    font-size:0.75rem;
+    color:#6b7280;
+    margin-top:20px;
+    padding-top:10px;
+    border-top:1px solid #e5e7eb;
+  ">
+    Última versão da aplicação: carregando...
+  </footer>
+ <!-- Toast -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 <!-- LOGIN MODAL (bloqueia acesso) -->
 <div id="loginModal" class="modal-overlay modal-hidden" role="dialog" aria-modal="true">
   <div class="modal-content" role="document">
@@ -89,97 +303,6 @@
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
       <button id="modalCancelBtn" class="secondary-btn">Sair</button>
       <button id="modalLoginBtn" class="primary-btn">Entrar</button>
-    </div>
-  </div>
-</div>
-
-<!-- Toast -->
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-<div class="app">
-  <header>
-    <h1>Meus Investimentos</h1>
-    <div style="display:flex; align-items:center; gap:10px;">
-      <div style="font-size:0.9rem; color:var(--muted)">Usuário: <strong id="currentUserLabel">não logado</strong></div>
-      <button id="openLoginModalBtn" class="secondary-btn">Trocar usuário</button>
-      <button id="logoutBtn" class="secondary-btn">Sair</button>
-    </div>
-  </header>
-
-  <div class="grid">
-    <!-- LEFT: Cadastro -->
-    <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <strong>Novo lançamento</strong>
-        <div style="font-size:0.85rem; color:var(--muted)">(preencha e clique em adicionar)</div>
-      </div>
-
-      <div style="margin-top:10px;">
-        <label>Tipo</label>
-        <select id="tipo" style="width:100%; padding:8px; border-radius:8px; margin-top:6px;">
-          <option value="acao">Ação</option>
-          <option value="fundo">Fundo</option>
-          <option value="cripto">Cripto</option>
-          <option value="renda_fixa">Renda fixa</option>
-        </select>
-
-        <label>Ticker</label>
-        <input id="ticker" placeholder="Ex.: PETR4, BTC" style="width:100%; padding:8px; margin-top:6px; border-radius:8px;" />
-
-        <label>Nome (opcional)</label>
-        <input id="nome" placeholder="Nome do ativo" style="width:100%; padding:8px; margin-top:6px; border-radius:8px;" />
-
-        <label>Corretora</label>
-        <select id="corretora" style="width:100%; padding:8px; border-radius:8px; margin-top:6px;">
-          <option>Nubank</option><option>XP</option><option>BTG Pactual</option><option>Mercado Bitcoin</option>
-        </select>
-
-        <label>Valor aplicado (BRL)</label>
-        <input id="valor" placeholder="5000,00" style="width:100%; padding:8px; margin-top:6px; border-radius:8px;" />
-
-        <label>Quantidade</label>
-        <input id="quantidade" placeholder="Ex.: 10" style="width:100%; padding:8px; margin-top:6px; border-radius:8px;" />
-
-        <label>Preço (opcional)</label>
-        <input id="preco" placeholder="Preço unitário (opcional)" style="width:100%; padding:8px; margin-top:6px; border-radius:8px;" />
-
-        <div style="display:flex; gap:8px; margin-top:10px;">
-          <button id="addBtn" class="primary-btn">Adicionar</button>
-          <button id="updatePricesBtn" class="secondary-btn">Atualizar preços</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- RIGHT: Abas / Lista -->
-    <div>
-      <div class="card" style="margin-bottom:12px;">
-        <div class="tabs">
-          <button class="tab-btn active" data-tab="cadastro">Cadastro</button>
-          <button class="tab-btn" data-tab="lancamentos">Lançamentos</button>
-        </div>
-
-        <div id="tab-cadastro" class="tab-content active">
-          <div style="color:var(--muted); font-size:0.9rem;">Use o painel à esquerda para adicionar lançamentos (apenas após login).</div>
-        </div>
-
-        <div id="tab-lancamentos" class="tab-content" style="display:none;">
-          <div style="overflow:auto;">
-            <table>
-              <thead>
-                <tr><th>Tipo</th><th>Ticker</th><th>Nome</th><th>Corretora</th><th>Qtd</th><th>PM</th><th>Atual</th><th>Aplicado</th><th>Valor Atual</th><th>P/L</th><th></th></tr>
-              </thead>
-              <tbody id="lista"></tbody>
-            </table>
-            <div id="totais"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card" id="statusCard" style="margin-bottom:12px;">
-        <div id="status" style="min-height:22px; color:var(--muted)">Status: aguardando ação</div>
-      </div>
-
-      <footer id="footerAtualizacao" class="card" style="text-align:center; font-size:0.85rem;">Última versão da aplicação: v1.0 — secure</footer>
     </div>
   </div>
 </div>
