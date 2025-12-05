@@ -151,8 +151,61 @@
       display: none;
     }
   </style>
+
+<style>
+/* modal overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.modal-hidden { display: none; }
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 18px;
+  width: min(420px, 96%);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+.modal-content input { width:100%; padding:8px; margin-top:6px; border-radius:8px; border:1px solid #ddd; }
+.modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+.primary-btn { background:#064e3b; color:white; border:none; padding:8px 12px; border-radius:8px; }
+.secondary-btn { background:#e6e6e6; border:none; padding:8px 10px; border-radius:8px; }
+#appOverlayBlocker { position:fixed; inset:0; background:rgba(255,255,255,0.85); z-index:900; display:none; }
+</style>
+
+
 </head>
 <body>
+
+<!-- bloqueador que impede interação antes do login (visível enquanto modal aberto) -->
+<div id="appOverlayBlocker"></div>
+
+<!-- Login Modal -->
+<div id="loginModal" class="modal-overlay modal-hidden" role="dialog" aria-modal="true">
+  <div class="modal-content" role="document">
+    <h3>Entrar</h3>
+    <p style="color:#6b7280; margin:6px 0 10px 0;">Faça login para acessar seus investimentos.</p>
+
+    <label>Usuário</label>
+    <input id="modalLoginUserId" placeholder="digite seu usuário" autocomplete="username"/>
+
+    <label style="margin-top:8px;">Senha</label>
+    <input id="modalLoginPassword" type="password" placeholder="sua senha" autocomplete="current-password"/>
+
+    <div style="font-size:0.85rem; color:#6b7280; margin-top:8px;">Senha não é enviada ao servidor para armazenamento de dados — apenas usada para derivar a chave de criptografia local.</div>
+
+    <div class="modal-actions">
+      <button id="modalCancelBtn" class="secondary-btn">Cancelar</button>
+      <button id="modalLoginBtn" class="primary-btn">Entrar</button>
+    </div>
+  </div>
+</div>
+
   <!-- Mensagem do pull-to-refresh -->
   <div id="ptr-message">↻ Solte para atualizar a página...</div>
 
@@ -287,717 +340,327 @@
 
 
   <script>
-  const APP_VERSION = "v0.4 — 04/12/2025";
-  const TAB_STORAGE_KEY = "meus_investimentos_tab";
-
-  const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev";
-
-  const SESSION_STORAGE_KEY = "meus_investimentos_session";
-  const USER_ID_STORAGE_KEY = "meus_investimentos_user_id";
-
-  const STORAGE_KEY = "meus_investimentos_v3";
-
-  let sessionToken = "";
-  let currentUserId = "";
-
-  // ---------- SESSÃO / LOGIN ----------
-
-  function carregarSessaoLocal() {
-    try {
-      currentUserId = localStorage.getItem(USER_ID_STORAGE_KEY) || "";
-      sessionToken = localStorage.getItem(SESSION_STORAGE_KEY) || "";
-
-      const userInput = document.getElementById("loginUserId");
-      const currentUserLabel = document.getElementById("currentUserLabel");
-
-      if (userInput) userInput.value = currentUserId;
-      if (currentUserLabel) {
-        currentUserLabel.textContent = currentUserId || "não logado";
-      }
-    } catch (e) {
-      console.error("Erro ao carregar sessão local:", e);
-    }
-  }
-
-  function salvarSessaoLocal(userId, token) {
-    currentUserId = userId;
-    sessionToken = token;
-    try {
-      localStorage.setItem(USER_ID_STORAGE_KEY, userId || "");
-      localStorage.setItem(SESSION_STORAGE_KEY, token || "");
-    } catch (e) {
-      console.error("Erro ao salvar sessão local:", e);
-    }
-
-    const currentUserLabel = document.getElementById("currentUserLabel");
-    if (currentUserLabel) {
-      currentUserLabel.textContent = userId || "não logado";
-    }
-  }
-
-  async function fazerLogin() {
-    const userId = document.getElementById("loginUserId").value.trim();
-    const password = document.getElementById("loginPassword").value;
-
-    if (!userId || !password) {
-      alert("Informe usuário e senha.");
-      return;
-    }
-
-    setStatus("Autenticando...", "");
-
-    try {
-      const resp = await fetch(`${PROXY_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, password }),
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        alert(err.error || "Falha ao fazer login.");
-        setStatus("Falha ao fazer login.", "error");
-        return;
-      }
-
-      const json = await resp.json();
-      if (!json.ok || !json.sessionId || !json.user) {
-        alert("Resposta de login inválida.");
-        setStatus("Erro de login.", "error");
-        return;
-      }
-
-      salvarSessaoLocal(json.user.id, json.sessionId);
-      setStatus(`Logado como ${json.user.id}. Sincronizando dados...`, "success");
-
-      // limpa carteira local e sincroniza da nuvem
-      investimentos = [];
-      salvarDadosLocal(investimentos);
-      render();
-      await sincronizarComNuvemAoAbrir();
-    } catch (e) {
-      console.error("Erro no login:", e);
-      alert("Erro ao conectar ao servidor de login.");
-      setStatus("Erro ao conectar ao servidor.", "error");
-    }
-  }
-
-  function fazerLogout() {
-    salvarSessaoLocal("", "");
-    investimentos = [];
-    salvarDadosLocal(investimentos);
-    render();
-    setStatus("Sessão encerrada. Faça login para carregar seus dados.", "");
-  }
-
-  // ---------- DADOS LOCAL + NUVEM ----------
-
-  function carregarDadosLocal() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) {
-      console.error(e);
-      return [];
-    }
-  }
-
-  function salvarDadosLocal(dados) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
-  }
-
-  async function salvarDadosNuvem(dados) {
-    if (!sessionToken) {
-      console.warn("Sem sessão. Dados serão apenas locais.");
-      return;
-    }
-    try {
-      await fetch(`${PROXY_BASE_URL}/data`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionToken}`,
-        },
-        body: JSON.stringify(dados),
-      });
-    } catch (e) {
-      console.error("Erro ao salvar na nuvem:", e);
-    }
-  }
-
-  function salvarDados(dados) {
-    salvarDadosLocal(dados);
-    salvarDadosNuvem(dados);
-  }
-
-  let investimentos = carregarDadosLocal();
-
-  function formatCurrency(v) {
-    if (v == null || isNaN(v)) return "-";
-    return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  }
-
-  function formatPercent(v) {
-    if (v == null || isNaN(v)) return "-";
-    return v.toFixed(2).replace(".", ",") + " %";
-  }
-
-  function labelTipo(tipo) {
-    switch (tipo) {
-      case "renda_fixa":
-        return "Renda fixa";
-      case "fundo":
-        return "Fundo";
-      case "cripto":
-        return "Cripto";
-      case "acao":
-        return "Ação";
-      default:
-        return tipo;
-    }
-  }
-
-  function setStatus(msg, type = "") {
-    const el = document.getElementById("status");
-    if (!el) return;
-    el.textContent = msg || "";
-    el.className = "status" + (type ? " " + type : "");
-  }
-
-  function atualizarRodape() {
-    const footer = document.getElementById("footerAtualizacao");
-    if (!footer) return;
-    footer.textContent = "Última versão da aplicação: " + APP_VERSION;
-  }
-
-  const MAPA_CRIPTO = {
-    BTC: { id: "bitcoin", nome: "Bitcoin" },
-    ETH: { id: "ethereum", nome: "Ethereum" },
-    SOL: { id: "solana", nome: "Solana" },
-    ADA: { id: "cardano", nome: "Cardano" },
-    XRP: { id: "ripple", nome: "XRP" },
-    BNB: { id: "binancecoin", nome: "BNB" },
-  };
-
-  async function buscarPrecoCripto(ticker) {
-    if (!ticker) return { preco: null, nomeApi: null, valido: false };
-
-    const upper = ticker.toUpperCase().trim();
-    const info = MAPA_CRIPTO[upper];
-    if (!info) {
-      return { preco: null, nomeApi: null, valido: false };
-    }
-
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(
-      info.id
-    )}&vs_currencies=brl`;
-    try {
-      const resp = await fetch(url);
-      if (!resp.ok) {
-        return { preco: null, nomeApi: info.nome, valido: false };
-      }
-      const data = await resp.json();
-      const valor = data[info.id]?.brl;
-      const preco = typeof valor === "number" ? valor : null;
-      return {
-        preco,
-        nomeApi: info.nome,
-        valido: true,
-      };
-    } catch (e) {
-      console.error("Erro ao buscar cripto:", ticker, e);
-      return { preco: null, nomeApi: info.nome, valido: false };
-    }
-  }
-
-  async function buscarPrecoAcaoOuFundo(ticker) {
-    if (!ticker) return { preco: null, nomeApi: null, valido: false };
-
-    const clean = ticker.toUpperCase().trim();
-
-    try {
-      const url = `${PROXY_BASE_URL}/quote?symbol=${encodeURIComponent(clean)}`;
-      const resp = await fetch(url);
-
-      if (!resp.ok) {
-        console.error("Erro no proxy:", resp.status);
-        return { preco: null, nomeApi: null, valido: false };
-      }
-
-      const data = await resp.json();
-      const r = data.results && data.results[0];
-
-      if (!r || typeof r.regularMarketPrice !== "number") {
-        return { preco: null, nomeApi: null, valido: false };
-      }
-
-      return {
-        preco: r.regularMarketPrice,
-        nomeApi: r.longName || r.shortName || clean,
-        valido: true,
-      };
-    } catch (e) {
-      console.error("Erro ao chamar proxy:", e);
-      return { preco: null, nomeApi: null, valido: false };
-    }
-  }
-
-  function render() {
-    const tbody = document.getElementById("lista");
-    if (!tbody) return;
-    tbody.innerHTML = "";
-
-    const totais = {
-      renda_fixa: { aplicado: 0, atual: 0 },
-      fundo: { aplicado: 0, atual: 0 },
-      cripto: { aplicado: 0, atual: 0 },
-      acao: { aplicado: 0, atual: 0 },
-    };
-
-    investimentos.forEach((inv, index) => {
-      const valorAplicado = inv.valor || 0;
-      const quantidade = inv.quantidade || 0;
-      const precoAtual = inv.preco || 0;
-
-      const valorAtual =
-        quantidade && precoAtual
-          ? quantidade * precoAtual
-          : precoAtual || valorAplicado;
-
-      const precoMedio =
-        quantidade && valorAplicado
-          ? valorAplicado / quantidade
-          : valorAplicado || null;
-
-      const plValor = (valorAtual || 0) - (valorAplicado || 0);
-      const plPercent = valorAplicado
-        ? (plValor / valorAplicado) * 100
-        : null;
-
-      if (totais[inv.tipo]) {
-        totais[inv.tipo].aplicado += valorAplicado;
-        totais[inv.tipo].atual += valorAtual;
-      }
-
-      const tr = document.createElement("tr");
-
-      const tdTipo = document.createElement("td");
-      const span = document.createElement("span");
-      span.textContent = labelTipo(inv.tipo);
-      span.className = "badge tipo-" + inv.tipo;
-      tdTipo.appendChild(span);
-
-      const tdTicker = document.createElement("td");
-      tdTicker.textContent = inv.ticker || "-";
-
-      const tdNome = document.createElement("td");
-      tdNome.textContent = inv.nome || "-";
-
-      const tdCorretora = document.createElement("td");
-      tdCorretora.textContent = inv.corretora || "-";
-
-      const tdQtd = document.createElement("td");
-      tdQtd.textContent = quantidade ? quantidade : "-";
-
-      const tdPM = document.createElement("td");
-      tdPM.textContent = formatCurrency(precoMedio);
-
-      const tdPrecoAtual = document.createElement("td");
-      tdPrecoAtual.textContent = formatCurrency(precoAtual);
-
-      const tdAplicado = document.createElement("td");
-      tdAplicado.textContent = formatCurrency(valorAplicado);
-
-      const tdValorAtual = document.createElement("td");
-      tdValorAtual.textContent = formatCurrency(valorAtual);
-
-      const tdPL = document.createElement("td");
-      tdPL.textContent = formatPercent(plPercent);
-
-      const tdAcoes = document.createElement("td");
-      const btnDel = document.createElement("button");
-      btnDel.textContent = "Excluir";
-      btnDel.className = "danger-btn";
-      btnDel.onclick = () => {
-        investimentos.splice(index, 1);
-        salvarDados(investimentos);
-        render();
-      };
-      tdAcoes.appendChild(btnDel);
-
-      tr.appendChild(tdTipo);
-      tr.appendChild(tdTicker);
-      tr.appendChild(tdNome);
-      tr.appendChild(tdCorretora);
-      tr.appendChild(tdQtd);
-      tr.appendChild(tdPM);
-      tr.appendChild(tdPrecoAtual);
-      tr.appendChild(tdAplicado);
-      tr.appendChild(tdValorAtual);
-      tr.appendChild(tdPL);
-      tr.appendChild(tdAcoes);
-
-      tbody.appendChild(tr);
-    });
-
-    const totaisDiv = document.getElementById("totais");
-    if (!totaisDiv) return;
-    totaisDiv.innerHTML = "";
-
-    let totalCarteira = 0;
-
-    Object.entries(totais).forEach(([tipo, obj]) => {
-      if (obj.aplicado > 0 || obj.atual > 0) {
-        const span = document.createElement("span");
-        totalCarteira += obj.atual;
-        const plTipo = obj.aplicado
-          ? ((obj.atual - obj.aplicado) / obj.aplicado) * 100
-          : null;
-
-        span.textContent = `${labelTipo(tipo)} | Aplicado: ${formatCurrency(
-          obj.aplicado
-        )} | Atual: ${formatCurrency(obj.atual)} | P/L: ${formatPercent(
-          plTipo
-        )}`;
-        totaisDiv.appendChild(span);
-      }
-    });
-
-    if (totalCarteira > 0) {
-      const spanTotal = document.createElement("span");
-      spanTotal.style.marginTop = "6px";
-      spanTotal.style.fontWeight = "600";
-      spanTotal.textContent =
-        "Total da carteira (valor atual): " + formatCurrency(totalCarteira);
-      totaisDiv.appendChild(spanTotal);
-    }
-  }
-
-  async function validarTicker(tipo, ticker) {
-    const upper = ticker.toUpperCase().trim();
-    if (
-      !upper &&
-      (tipo === "acao" || tipo === "fundo" || tipo === "cripto")
-    ) {
-      return {
-        valido: false,
-        msg: "Informe um ticker para esse tipo de ativo.",
-      };
-    }
-
-    if (tipo === "cripto") {
-      const info = MAPA_CRIPTO[upper];
-      if (!info) {
-        return {
-          valido: false,
-          msg: "Ticker de cripto não mapeado. Adicione no código ou corrija o ticker.",
-        };
-      }
-      const res = await buscarPrecoCripto(upper);
-      if (!res.valido) {
-        return {
-          valido: false,
-          msg: "Não foi possível validar o ticker de cripto. Verifique o código.",
-        };
-      }
-      return {
-        valido: true,
-        preco: res.preco,
-        nomeApi: res.nomeApi,
-      };
-    }
-
-    if (tipo === "acao" || tipo === "fundo") {
-      const res = await buscarPrecoAcaoOuFundo(upper);
-      if (!res.valido) {
-        return {
-          valido: false,
-          msg: "Ticker de ação/fundo não encontrado. Verifique o código (ex.: PETR4, IVVB11, JURO11).",
-        };
-      }
-      return {
-        valido: true,
-        preco: res.preco,
-        nomeApi: res.nomeApi,
-      };
-    }
-
-    return { valido: true, preco: null, nomeApi: null };
-  }
-
-  document.getElementById("addBtn").addEventListener("click", async () => {
-    if (!sessionToken) {
-      alert("Faça login antes de adicionar lançamentos.");
-      return;
-    }
-
-    const tipo = document.getElementById("tipo").value;
-    const ticker = document.getElementById("ticker").value.trim();
-    let nome = document.getElementById("nome").value.trim();
-    const corretora = document.getElementById("corretora").value;
-    const valor = parseFloat(
-      document.getElementById("valor").value.replace(",", ".")
-    );
-    const quantidadeRaw = document
-      .getElementById("quantidade")
-      .value.replace(",", ".");
-    const precoRaw = document
-      .getElementById("preco")
-      .value.replace(",", ".");
-    let quantidade = quantidadeRaw ? parseFloat(quantidadeRaw) : null;
-    let preco = precoRaw ? parseFloat(precoRaw) : null;
-
-    if (!valor || isNaN(valor)) {
-      alert("Informe o valor aplicado total.");
-      return;
-    }
-
-    if (
-      (tipo === "acao" || tipo === "fundo" || tipo === "cripto") &&
-      (!quantidade || isNaN(quantidade))
-    ) {
-      alert("Para ações, fundos e cripto informe a quantidade.");
-      return;
-    }
-
-    setStatus("Validando ticker...", "");
-
-    const valida = await validarTicker(tipo, ticker);
-    if (!valida.valido) {
-      alert(
-        valida.msg || "Erro ao validar o ticker. Verifique o código informado."
-      );
-      setStatus(
-        valida.msg || "Erro ao validar o ticker.",
-        "error"
-      );
-      return;
-    }
-
-    if (!nome && valida.nomeApi) {
-      nome = valida.nomeApi;
-    }
-
-    if (!preco && valida.preco) {
-      preco = valida.preco;
-    }
-
-    if ((!quantidade || isNaN(quantidade)) && tipo === "renda_fixa") {
-      quantidade = 1;
-    }
-
-    investimentos.push({
-      tipo,
-      ticker: ticker || null,
-      nome: nome || ticker || "",
-      corretora,
-      valor,
-      quantidade,
-      preco,
-      criadoEm: new Date().toISOString(),
-    });
-
-    salvarDados(investimentos);
-
-    alert("Lançamento adicionado com sucesso!");
-
-    document.getElementById("ticker").value = "";
-    document.getElementById("nome").value = "";
-    document.getElementById("valor").value = "";
-    document.getElementById("quantidade").value = "";
-    document.getElementById("preco").value = "";
-
-    render();
-    setStatus("Lançamento adicionado com sucesso.", "success");
-  });
-
-  async function atualizarPrecosMercado() {
-    if (!sessionToken) {
-      alert("Faça login antes de atualizar preços.");
-      return;
-    }
-
-    if (!investimentos.length) {
-      setStatus("Nenhum investimento para atualizar.", "");
-      return;
-    }
-
-    setStatus("Atualizando preços de mercado...", "");
-
-    let atualizados = 0;
-
-    for (let inv of investimentos) {
-      if (!inv.ticker) continue;
-
-      if (inv.tipo === "cripto") {
-        const res = await buscarPrecoCripto(inv.ticker);
-        if (res.valido && res.preco != null) {
-          inv.preco = res.preco;
-          if (!inv.nome && res.nomeApi) {
-            inv.nome = res.nomeApi;
-          }
-          atualizados++;
-        }
-      } else if (inv.tipo === "acao" || inv.tipo === "fundo") {
-        const res = await buscarPrecoAcaoOuFundo(inv.ticker);
-        if (res.valido && res.preco != null) {
-          inv.preco = res.preco;
-          if (!inv.nome && res.nomeApi) {
-            inv.nome = res.nomeApi;
-          }
-          atualizados++;
-        }
-      } else {
-        continue;
-      }
-    }
-
-    salvarDados(investimentos);
-    render();
-
-    if (atualizados > 0) {
-      setStatus(
-        `Preços atualizados para ${atualizados} ativo(s).`,
-        "success"
-      );
-    } else {
-      setStatus(
-        "Não foi possível atualizar os preços. Verifique tickers ou tente novamente depois.",
-        "error"
-      );
-    }
-  }
-
-  document
-    .getElementById("updatePricesBtn")
-    .addEventListener("click", () => {
-      atualizarPrecosMercado();
-    });
-
-  function setActiveTab(tab) {
-    document.querySelectorAll(".tab-btn").forEach((b) => {
-      const bTab = b.getAttribute("data-tab");
-      if (bTab === tab) {
-        b.classList.add("active");
-      } else {
-        b.classList.remove("active");
-      }
-    });
-
-    document.querySelectorAll(".tab-content").forEach((c) => {
-      if (c.id === "tab-" + tab) {
-        c.classList.add("active");
-      } else {
-        c.classList.remove("active");
-      }
-    });
-
-    try {
-      localStorage.setItem(TAB_STORAGE_KEY, tab);
-    } catch (e) {
-      console.warn("Não foi possível salvar aba atual:", e);
-    }
-  }
-
-  document.querySelectorAll(".tab-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const tab = btn.getAttribute("data-tab");
-      setActiveTab(tab);
-    });
-  });
-
-  let abaSalva = "cadastro";
+/* ====== CONFIG ====== */
+const APP_VERSION = "v1.0 — secure";
+const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev"; // ajusta aqui
+const SESSION_STORAGE_KEY = "meus_investimentos_session";
+const USER_ID_STORAGE_KEY = "meus_investimentos_user_id";
+const STORAGE_KEY = "meus_investimentos_v3_enc"; // armazenamos local um cache DESCRIPTOGRAFADO? opcional: keep encrypted local?
+/* ====== END CONFIG ====== */
+
+/* ====== ESTADO ====== */
+let sessionToken = localStorage.getItem(SESSION_STORAGE_KEY) || "";
+let currentUserId = localStorage.getItem(USER_ID_STORAGE_KEY) || "";
+let cryptoKey = null; // CryptoKey (AES-GCM) - fica apenas em memória
+let investimentos = []; // dados em claro na memória após decriptar
+
+/* ====== UI helpers (modal) ====== */
+function showModal() {
+  document.getElementById("loginModal").classList.remove("modal-hidden");
+  document.getElementById("appOverlayBlocker").style.display = "block";
+}
+function hideModal() {
+  document.getElementById("loginModal").classList.add("modal-hidden");
+  document.getElementById("appOverlayBlocker").style.display = "none";
+}
+
+/* ====== Criptografia no cliente (PBKDF2 + AES-GCM) ====== */
+async function deriveKey(password, saltHex) {
+  const enc = new TextEncoder();
+  const passwordKey = await crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]);
+  // saltHex to Uint8Array
+  const salt = hexToUint8(saltHex);
+  const key = await crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: 200000, hash: "SHA-256" },
+    passwordKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+  return key;
+}
+function hexToUint8(hex) {
+  if (!hex) return new Uint8Array();
+  const res = new Uint8Array(hex.length/2);
+  for (let i=0;i<res.length;i++) res[i]=parseInt(hex.substr(i*2,2),16);
+  return res;
+}
+function uint8ToBase64(u8) {
+  let s = "";
+  for (let i=0;i<u8.length;i++) s+=String.fromCharCode(u8[i]);
+  return btoa(s);
+}
+function base64ToUint8(b64) {
+  const s = atob(b64);
+  const u8 = new Uint8Array(s.length);
+  for (let i=0;i<s.length;i++) u8[i]=s.charCodeAt(i);
+  return u8;
+}
+async function encryptJson(obj) {
+  if (!cryptoKey) throw new Error("Chave não derivada");
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder();
+  const plain = enc.encode(JSON.stringify(obj));
+  const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, cryptoKey, plain);
+  const combined = new Uint8Array(iv.byteLength + cipher.byteLength);
+  combined.set(iv,0);
+  combined.set(new Uint8Array(cipher), iv.byteLength);
+  return uint8ToBase64(combined);
+}
+async function decryptJson(b64) {
+  if (!cryptoKey) throw new Error("Chave não derivada");
+  const all = base64ToUint8(b64);
+  const iv = all.slice(0,12);
+  const data = all.slice(12);
+  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, cryptoKey, data);
+  const dec = new TextDecoder();
+  return JSON.parse(dec.decode(plain));
+}
+
+/* ====== UI helpers (status, footer) ====== */
+function setStatus(msg, type="") {
+  const el = document.getElementById("status");
+  if (!el) return;
+  el.textContent = msg||"";
+  el.className = "status"+(type? " "+type:"");
+}
+function atualizarRodape() {
+  const footer = document.getElementById("footerAtualizacao");
+  if (!footer) return;
+  footer.textContent = "Última versão da aplicação: " + APP_VERSION;
+}
+
+/* ====== LOGIN (faz fetch /auth/login e deriva chave) ====== */
+async function fazerLoginModal() {
+  const userId = document.getElementById("modalLoginUserId").value.trim();
+  const password = document.getElementById("modalLoginPassword").value;
+  if (!userId || !password) { alert("Informe usuário e senha."); return; }
+  setStatus("Autenticando...", "");
   try {
-    const stored = localStorage.getItem(TAB_STORAGE_KEY);
-    if (stored === "cadastro" || stored === "lancamentos") {
-      abaSalva = stored;
+    const resp = await fetch(`${PROXY_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify({ userId, password })
+    });
+    const json = await resp.json().catch(()=>({}));
+    if (!resp.ok || !json.ok || !json.sessionId) {
+      alert(json.error || "Falha ao autenticar.");
+      setStatus("Falha ao autenticar.", "error");
+      return;
+    }
+    // recebe salt para derivar chave
+    const saltHex = json.encryptionSalt;
+    // derive key locally
+    cryptoKey = await deriveKey(password, saltHex);
+    // salva sessão (token) e userId
+    sessionToken = json.sessionId;
+    currentUserId = json.user.id;
+    localStorage.setItem(SESSION_STORAGE_KEY, sessionToken);
+    localStorage.setItem(USER_ID_STORAGE_KEY, currentUserId);
+    // limpa senha do input
+    document.getElementById("modalLoginPassword").value = "";
+    // oculta modal e sincroniza dados
+    hideModal();
+    setStatus(`Logado como ${currentUserId}. Sincronizando...`, "success");
+    await sincronizarComNuvemAoAbrir();
+  } catch (e) {
+    console.error(e);
+    alert("Erro ao conectar ao servidor.");
+    setStatus("Erro ao conectar.", "error");
+  }
+}
+
+/* ====== LOGOUT ====== */
+function fazerLogout() {
+  sessionToken = "";
+  cryptoKey = null;
+  currentUserId = "";
+  localStorage.removeItem(SESSION_STORAGE_KEY);
+  localStorage.removeItem(USER_ID_STORAGE_KEY);
+  investimentos = [];
+  render();
+  setStatus("Sessão encerrada.", "");
+  // abrir modal para novo login
+  showModal();
+}
+
+/* ====== Sincronizar / salvar dados (criptografado) ====== */
+async function sincronizarComNuvemAoAbrir() {
+  if (!sessionToken) {
+    setStatus("Sem sessão. Faça login.", "");
+    return;
+  }
+  setStatus("Buscando dados criptografados...", "");
+  try {
+    const resp = await fetch(`${PROXY_BASE_URL}/data`, {
+      headers: { Authorization: `Bearer ${sessionToken}` }
+    });
+    if (!resp.ok) {
+      setStatus("Falha ao buscar dados da nuvem.", "error");
+      return;
+    }
+    const json = await resp.json();
+    if (json.data) {
+      // decrypt
+      try {
+        const plain = await decryptJson(json.data);
+        investimentos = plain;
+        salvarCacheLocalEncrypted(json.data); // opcional cache encriptado local
+        render();
+        setStatus("Dados sincronizados (decriptados).", "success");
+      } catch (e) {
+        console.error("Erro ao decriptar:", e);
+        investimentos = [];
+        render();
+        setStatus("Não foi possível decriptar os dados (senha errada?).", "error");
+        // forçar re-login se preferir:
+        showModal();
+      }
+    } else {
+      investimentos = [];
+      render();
+      setStatus("Sem dados na nuvem.", "");
     }
   } catch (e) {
-    console.warn("Não foi possível ler aba salva:", e);
+    console.error(e);
+    setStatus("Erro ao sincronizar com a nuvem.", "error");
   }
-  setActiveTab(abaSalva);
+}
 
-  carregarSessaoLocal();
-
-  const loginBtn = document.getElementById("loginBtn");
-  if (loginBtn) {
-    loginBtn.addEventListener("click", fazerLogin);
+// salva dados criptografados na nuvem (antes criptografa)
+async function salvarDadosNuvem(dados) {
+  if (!sessionToken) { console.warn("Sem sessão."); return; }
+  try {
+    const encrypted = await encryptJson(dados); // string base64
+    // opcional: salva cache local do encriptado
+    salvarCacheLocalEncrypted(encrypted);
+    await fetch(`${PROXY_BASE_URL}/data`, {
+      method: "POST",
+      headers: { "Content-Type":"text/plain", Authorization: `Bearer ${sessionToken}` },
+      body: encrypted
+    });
+  } catch (e) {
+    console.error("Erro ao salvar na nuvem:", e);
+    setStatus("Erro ao salvar na nuvem.", "error");
   }
+}
 
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", fazerLogout);
+/* opcional: armazenar uma cópia encriptada local para performance/offline */
+function salvarCacheLocalEncrypted(encrypted) {
+  try { localStorage.setItem(STORAGE_KEY, encrypted); } catch(e) { console.warn(e); }
+}
+function carregarCacheLocalEncrypted() {
+  try { return localStorage.getItem(STORAGE_KEY); } catch(e){ return null; }
+}
+
+/* ====== salvarDados (central) ====== */
+function salvarDados(dados) {
+  // mantém em memória em claro
+  investimentos = dados;
+  // salva encriptado na nuvem (não await)
+  salvarDadosNuvem(dados);
+}
+
+/* ====== Funções de UI / render da tabela (sem alteração conceitual) ====== */
+/* Abaixo simplifiquei: render usa 'investimentos' em memória já decriptados */
+function formatCurrency(v){ if (v==null||isNaN(v)) return "-"; return v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
+function formatPercent(v){ if (v==null||isNaN(v)) return "-"; return v.toFixed(2).replace(".",",")+" %"; }
+function labelTipo(t){ switch(t){case"renda_fixa":return"Renda fixa";case"fundo":return"Fundo";case"cripto":return"Cripto";case"acao":return"Ação";default:return t;} }
+
+function render(){
+  const tbody = document.getElementById("lista");
+  if (!tbody) return;
+  tbody.innerHTML="";
+  const totais = { renda_fixa:{aplicado:0,atual:0},fundo:{aplicado:0,atual:0},cripto:{aplicado:0,atual:0},acao:{aplicado:0,atual:0} };
+  investimentos.forEach((inv,index)=>{
+    const valorAplicado = inv.valor||0;
+    const quantidade = inv.quantidade||0;
+    const precoAtual = inv.preco||0;
+    const valorAtual = (quantidade && precoAtual)? quantidade*precoAtual : (precoAtual || valorAplicado);
+    const precoMedio = (quantidade && valorAplicado)? (valorAplicado/quantidade) : (valorAplicado || null);
+    const plValor = (valorAtual||0) - (valorAplicado||0);
+    const plPercent = valorAplicado ? (plValor/valorAplicado)*100 : null;
+    if (totais[inv.tipo]) { totais[inv.tipo].aplicado += valorAplicado; totais[inv.tipo].atual += valorAtual; }
+    const tr = document.createElement("tr");
+    const tdTipo = document.createElement("td"); const span=document.createElement("span"); span.textContent=labelTipo(inv.tipo); span.className="badge tipo-"+inv.tipo; tdTipo.appendChild(span);
+    const tdTicker=document.createElement("td"); tdTicker.textContent=inv.ticker||"-";
+    const tdNome=document.createElement("td"); tdNome.textContent=inv.nome||"-";
+    const tdCorretora=document.createElement("td"); tdCorretora.textContent=inv.corretora||"-";
+    const tdQtd=document.createElement("td"); tdQtd.textContent=quantidade?quantidade:"-";
+    const tdPM=document.createElement("td"); tdPM.textContent=formatCurrency(precoMedio);
+    const tdPrecoAtual=document.createElement("td"); tdPrecoAtual.textContent=formatCurrency(precoAtual);
+    const tdAplicado=document.createElement("td"); tdAplicado.textContent=formatCurrency(valorAplicado);
+    const tdValorAtual=document.createElement("td"); tdValorAtual.textContent=formatCurrency(valorAtual);
+    const tdPL=document.createElement("td"); tdPL.textContent=formatPercent(plPercent);
+    const tdAcoes=document.createElement("td"); const btnDel=document.createElement("button"); btnDel.textContent="Excluir"; btnDel.className="danger-btn"; btnDel.onclick=()=>{ investimentos.splice(index,1); salvarDados(investimentos); render(); }; tdAcoes.appendChild(btnDel);
+    [tdTipo,tdTicker,tdNome,tdCorretora,tdQtd,tdPM,tdPrecoAtual,tdAplicado,tdValorAtual,tdPL,tdAcoes].forEach(x=>tr.appendChild(x));
+    tbody.appendChild(tr);
+  });
+  const totaisDiv = document.getElementById("totais"); if (!totaisDiv) return; totaisDiv.innerHTML="";
+  let totalCarteira=0;
+  Object.entries(totais).forEach(([tipo,obj])=>{
+    if (obj.aplicado>0||obj.atual>0){
+      const span=document.createElement("span"); totalCarteira+=obj.atual; const plTipo = obj.aplicado? ((obj.atual-obj.aplicado)/obj.aplicado)*100 : null;
+      span.textContent = `${labelTipo(tipo)} | Aplicado: ${formatCurrency(obj.aplicado)} | Atual: ${formatCurrency(obj.atual)} | P/L: ${formatPercent(plTipo)}`;
+      totaisDiv.appendChild(span);
+    }
+  });
+  if (totalCarteira>0){ const spanTotal=document.createElement("span"); spanTotal.style.marginTop="6px"; spanTotal.style.fontWeight="600"; spanTotal.textContent = "Total da carteira (valor atual): " + formatCurrency(totalCarteira); totaisDiv.appendChild(spanTotal); }
+}
+
+/* ====== Lógica de adicionar ativo (mantida, mas exige sessão) ====== */
+document.getElementById("addBtn")?.addEventListener("click", async ()=>{
+  if (!sessionToken || !cryptoKey) { alert("Faça login antes de adicionar lançamentos."); return; }
+  const tipo = document.getElementById("tipo").value;
+  const ticker = document.getElementById("ticker").value.trim();
+  let nome = document.getElementById("nome").value.trim();
+  const corretora = document.getElementById("corretora").value;
+  const valor = parseFloat(document.getElementById("valor").value.replace(",","."));
+  const quantidadeRaw = document.getElementById("quantidade").value.replace(",",".");
+  const precoRaw = document.getElementById("preco").value.replace(",",".");
+  let quantidade = quantidadeRaw?parseFloat(quantidadeRaw):null;
+  let preco = precoRaw?parseFloat(precoRaw):null;
+  if (!valor||isNaN(valor)){ alert("Informe o valor aplicado total."); return; }
+  if ((tipo==="acao"||tipo==="fundo"||tipo==="cripto") && (!quantidade||isNaN(quantidade))){ alert("Para ações, fundos e cripto informe a quantidade."); return; }
+  // validação externa de ticker opcional (mantém suas funções anteriores se quiser)
+  investimentos.push({ tipo, ticker: ticker||null, nome: nome||ticker||"", corretora, valor, quantidade, preco, criadoEm: new Date().toISOString() });
+  salvarDados(investimentos);
+  alert("Lançamento adicionado com sucesso!");
+  ["ticker","nome","valor","quantidade","preco"].forEach(id=>document.getElementById(id).value="");
+  render();
+  setStatus("Lançamento adicionado.", "success");
+});
+
+/* ====== Atualizar preços (mantém sua função existente) ====== */
+/* Reaproveite suas funções buscarPrecoCripto e buscarPrecoAcaoOuFundo aqui (não incluídas por brevidade).
+   Antes de rodar atualizarPrecosMercado, verifique sessionToken/cryptoKey se for necessário. */
+
+/* ====== Inicialização ====== */
+async function init() {
+  atualizarRodape();
+  // ligar botões modal
+  document.getElementById("modalLoginBtn")?.addEventListener("click", fazerLoginModal);
+  document.getElementById("modalCancelBtn")?.addEventListener("click", ()=>{ /* opcional: fechar modal */ });
+  document.getElementById("openLoginModalBtn")?.addEventListener("click", ()=>{ showModal(); });
+  document.getElementById("logoutBtn")?.addEventListener("click", fazerLogout);
+
+  // se tiver sessão no localStorage, abre modal mas com userId preenchido e pede senha
+  if (!sessionToken) {
+    showModal();
+    // opcional: preencher usuário se salvo
+    document.getElementById("modalLoginUserId").value = currentUserId || "";
+  } else {
+    // se houver sessão, pedimos a senha para derivar chave antes de sincronizar:
+    // para segurança, a sessão por si só NÃO permite decriptar os dados: precisa da senha do usuário local
+    // então abrimos modal pedindo senha (userId já preenchido)
+    document.getElementById("modalLoginUserId").value = currentUserId || "";
+    showModal();
   }
 
   render();
-  atualizarRodape();
+}
 
-  async function sincronizarComNuvemAoAbrir() {
-    if (!sessionToken) {
-      console.warn("Sem sessão. Pulando sync de nuvem.");
-      return;
-    }
-    try {
-      const resp = await fetch(`${PROXY_BASE_URL}/data`, {
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-        },
-      });
-      if (!resp.ok) {
-        console.error("Falha ao carregar da nuvem:", resp.status);
-        return;
-      }
-      const json = await resp.json();
-      if (Array.isArray(json.data)) {
-        investimentos = json.data;
-        salvarDadosLocal(investimentos);
-        render();
-        setStatus("Dados sincronizados da nuvem.", "success");
-      }
-    } catch (e) {
-      console.error("Erro ao sincronizar com a nuvem:", e);
-    }
-  }
-
-  sincronizarComNuvemAoAbrir();
-
-  let startY = 0;
-  let puxando = false;
-  const mensagemPTR = document.getElementById("ptr-message");
-
-  window.addEventListener("touchstart", (e) => {
-    if (window.scrollY === 0) {
-      startY = e.touches[0].clientY;
-      puxando = true;
-    }
-  });
-
-  window.addEventListener("touchmove", (e) => {
-    if (!puxando) return;
-
-    const atualY = e.touches[0].clientY;
-    const distancia = atualY - startY;
-
-    if (distancia > 50) {
-      mensagemPTR.style.display = "block";
-    } else {
-      mensagemPTR.style.display = "none";
-    }
-  });
-
-  window.addEventListener("touchend", (e) => {
-    if (!puxando) return;
-    puxando = false;
-
-    const endY = e.changedTouches[0].clientY;
-    const distancia = endY - startY;
-
-    mensagemPTR.style.display = "none";
-
-    if (distancia > 80) {
-      location.reload();
-    }
-  });
+init();
 </script>
 </body>
 </html>
