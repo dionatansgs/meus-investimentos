@@ -1,453 +1,549 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Meus Investimentos</title>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      margin: 0;
-      padding: 16px;
-      background: #f4f4f4;
-      overscroll-behavior-y: contain; /* ajuda no pull-to-refresh customizado */
-    }
-    h1 {
-      font-size: 1.4rem;
-      margin-bottom: 12px;
-    }
-    .card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-      margin-bottom: 16px;
-    }
-    label {
-      font-size: 0.85rem;
-      display: block;
-      margin-bottom: 4px;
-    }
-    input, select {
-      width: 100%;
-      padding: 8px;
-      margin-bottom: 10px;
-      border-radius: 8px;
-      border: 1px solid #ddd;
-      font-size: 0.9rem;
-      box-sizing: border-box;
-    }
-    button {
-      border: none;
-      border-radius: 999px;
-      padding: 10px 16px;
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
-    #addBtn {
-      background: #0f766e;
-      color: #fff;
-      width: 100%;
-      margin-top: 4px;
-    }
-    #addBtn:active {
-      opacity: 0.8;
-    }
-
-    .secondary-btn {
-      background: #e5e7eb;
-      font-size: 0.8rem;
-      padding: 8px 12px;
-      border-radius: 999px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.8rem;
-      min-width: 700px;
-    }
-    th, td {
-      padding: 6px;
-      text-align: left;
-      border-bottom: 1px solid #eee;
-      white-space: nowrap;
-    }
-    th {
-      font-weight: 600;
-    }
-    .table-container {
-      overflow-x: auto;
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 0.7rem;
-    }
-    .tipo-renda_fixa { background: #e0f2fe; }
-    .tipo-fundo      { background: #fef9c3; }
-    .tipo-cripto     { background: #fee2e2; }
-    .tipo-acao       { background: #dcfce7; }
-
-    .totais span {
-      display: block;
-      font-size: 0.85rem;
-      margin-bottom: 4px;
-    }
-    .danger-btn {
-      background: #fee2e2;
-      font-size: 0.7rem;
-      padding: 4px 8px;
-      border-radius: 999px;
-    }
-
-    /* Abas */
-    .tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    .tab-btn {
-      flex: 1;
-      text-align: center;
-      padding: 8px 0;
-      border-radius: 999px;
-      border: 1px solid #d4d4d8;
-      background: #f4f4f5;
-      font-size: 0.9rem;
-    }
-    .tab-btn.active {
-      background: #0f766e;
-      color: #fff;
-      border-color: #0f766e;
-    }
-    .tab-content {
-      display: none;
-    }
-    .tab-content.active {
-      display: block;
-    }
-
-    .status {
-      font-size: 0.8rem;
-      margin-bottom: 6px;
-      color: #4b5563;
-    }
-    .status.error {
-      color: #b91c1c;
-    }
-    .status.success {
-      color: #15803d;
-    }
-
-    /* Mensagem visual do pull-to-refresh */
-    #ptr-message {
-      text-align: center;
-      padding: 10px;
-      font-size: 0.8rem;
-      color: #6b7280;
-      display: none;
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Meus Investimentos — App Seguro</title>
 
 <style>
-/* modal overlay */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-.modal-hidden { display: none; }
-.modal-content {
-  background: #fff;
-  border-radius: 12px;
-  padding: 18px;
-  width: min(420px, 96%);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
-}
-.modal-content input { width:100%; padding:8px; margin-top:6px; border-radius:8px; border:1px solid #ddd; }
-.modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
-.primary-btn { background:#064e3b; color:white; border:none; padding:8px 12px; border-radius:8px; }
-.secondary-btn { background:#e6e6e6; border:none; padding:8px 10px; border-radius:8px; }
-#appOverlayBlocker { position:fixed; inset:0; background:rgba(255,255,255,0.85); z-index:900; display:none; }
+  :root{
+    --bg:#f8fafc; --card:#ffffff; --muted:#6b7280; --primary:#065f46; --danger:#dc2626;
+    --radius:12px; --gap:10px;
+  }
+  body{ font-family: Inter, "Helvetica Neue", Arial, sans-serif; background:var(--bg); margin:0; color:#0f172a; -webkit-font-smoothing:antialiased; }
+  .app{ max-width:1100px; margin:18px auto; padding:14px; }
+  header{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
+  h1{ font-size:1.1rem; margin:0; }
+  .secondary-btn, .primary-btn, .danger-btn {
+    border:0; border-radius:10px; padding:8px 12px; cursor:pointer;
+  }
+  .primary-btn{ background:var(--primary); color:#fff; }
+  .secondary-btn{ background:#eef2f3; color:#111; }
+  .danger-btn{ background:var(--danger); color:#fff; }
+
+  /* Layout */
+  .grid{ display:grid; grid-template-columns: 320px 1fr; gap:14px; }
+  .card{ background:var(--card); border-radius:var(--radius); padding:12px; box-shadow:0 6px 20px rgba(2,6,23,0.06); }
+
+  /* Tabs */
+  .tabs { display:flex; gap:8px; margin-bottom:10px; }
+  .tab-btn { background:transparent; border:0; padding:8px 10px; border-radius:10px; cursor:pointer; }
+  .tab-btn.active { background:#e6f4ef; color:var(--primary); font-weight:600; }
+
+  /* Table */
+  table{ width:100%; border-collapse:collapse; font-size:0.9rem; }
+  th, td{ padding:8px 6px; text-align:left; border-bottom:1px solid #eef2f3; vertical-align:middle; }
+  .badge{ padding:6px 8px; border-radius:10px; font-size:0.8rem; display:inline-block; }
+  .tipo-renda_fixa{ background:#f1f5f9; } .tipo-acao{ background:#fff3cd; } .tipo-cripto{ background:#eef2ff; } .tipo-fundo{ background:#f3e8ff; }
+
+  /* Totals */
+  #totais{ display:flex; flex-direction:column; gap:6px; margin-top:10px; font-size:0.9rem; color:var(--muted); }
+
+  /* Footer */
+  footer{ margin-top:12px; text-align:center; color:var(--muted); font-size:0.85rem; }
+
+  /* Modal / blocker */
+  .modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index:9999; }
+  .modal-hidden{ display:none; }
+  .modal-content{ background:#fff; border-radius:14px; padding:18px; width: min(420px, 96%); box-shadow:0 12px 40px rgba(2,6,23,0.15); }
+  .modal-content h3{ margin:0 0 8px 0; font-size:1.05rem; }
+  .modal-content label{ font-size:0.85rem; color:var(--muted); display:block; margin-top:8px; }
+  .modal-content input{ width:100%; padding:8px; border-radius:8px; border:1px solid #e6e9ee; margin-top:6px; }
+
+  /* Toast */
+  .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:20px; background:#111827; color:white; padding:10px 14px; border-radius:10px; opacity:0; transition:opacity .25s; z-index:11000; }
+  .toast.show { opacity:1; }
+
+  /* App overlay blocker while modal open (prevent clicks) */
+  #appOverlayBlocker { position:fixed; inset:0; z-index:900; background:rgba(255,255,255,0.6); display:none; }
+
+  /* pull-to-refresh message */
+  #ptr-message{ position:fixed; top:10px; left:50%; transform:translateX(-50%); background:#064e3b; color:white; padding:6px 10px; border-radius:8px; display:none; z-index:12000; }
+
+  /* small screens */
+  @media (max-width:800px){
+    .grid{ grid-template-columns: 1fr; }
+  }
 </style>
-
-
 </head>
 <body>
+<div id="appOverlayBlocker"></div>
+<div id="ptr-message">Solte para atualizar</div>
 
-  <!-- Mensagem do pull-to-refresh -->
-  <div id="ptr-message">↻ Solte para atualizar a página...</div>
-
-  <h1>Meus Investimentos</h1>
-  
-  
-  <!-- Abas -->
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="cadastro">Cadastro</button>
-    <button class="tab-btn" data-tab="lancamentos">Lançamentos</button>
-  </div>
-
-  <!-- ABA CADASTRO -->
-  <div id="tab-cadastro" class="tab-content active">
-    <div class="card">
-      <h2 style="font-size:1rem; margin-top:0;">Novo lançamento</h2>
-
-      <label for="tipo">Tipo</label>
-      <select id="tipo">
-        <option value="renda_fixa">Renda fixa</option>
-        <option value="fundo">Fundo (FII/ETF/Fundo)</option>
-        <option value="cripto">Criptoativo</option>
-        <option value="acao">Ação</option>
-      </select>
-
-      <label for="ticker">Ticker / Código (para preço e validação)</label>
-      <input id="ticker" placeholder="Ex.: PETR4, IVVB11, BTC, ETH..." />
-
-      <label for="nome">Nome do ativo (deixa em branco para preencher automático)</label>
-      <input id="nome" placeholder="Se vazio, usa o nome retornado pela API" />
-
-      <label for="corretora">Corretora / Banco</label>
-      <select id="corretora">
-        <option value="Nubank">Nubank</option>
-        <option value="XP">XP</option>
-        <option value="BTG Pactual">BTG Pactual</option>
-        <option value="Mercado Bitcoin">Mercado Bitcoin</option>
-      </select>
-
-      <label for="valor">Valor aplicado total (R$)</label>
-      <input id="valor" type="number" step="0.01" inputmode="decimal" />
-
-      <label for="quantidade">Quantidade de cotas/moedas</label>
-      <input id="quantidade" type="number" step="0.0001" inputmode="decimal" />
-
-      <label for="preco">Preço atual (R$) – opcional, será atualizado depois</label>
-      <input id="preco" type="number" step="0.01" inputmode="decimal" />
-
-      <button id="addBtn">Adicionar</button>
-    </div>
-  </div>
-
-  <!-- ABA LANÇAMENTOS -->
-  <div id="tab-lancamentos" class="tab-content">
-    <div class="card">
-      <div class="status" id="status"></div>
-      <button id="updatePricesBtn" class="secondary-btn">Atualizar preços de mercado</button>
-    </div>
-
-    <div class="card">
-      <h2 style="font-size:1rem; margin-top:0;">Totais</h2>
-      <div class="totais" id="totais"></div>
-    </div>
-
-    <div class="card">
-      <h2 style="font-size:1rem; margin-top:0;">Lançamentos</h2>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Tipo</th>
-              <th>Ticker</th>
-              <th>Ativo</th>
-              <th>Corretora</th>
-              <th>Qtd</th>
-              <th>Preço médio</th>
-              <th>Preço atual</th>
-              <th>Aplicado</th>
-              <th>Valor atual</th>
-              <th>P/L %</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="lista"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Rodapé com versão da aplicação -->
-  <footer id="footerAtualizacao" style="
-    text-align:center;
-    font-size:0.75rem;
-    color:#6b7280;
-    margin-top:20px;
-    padding-top:10px;
-    border-top:1px solid #e5e7eb;
-  ">
-    Última versão da aplicação: carregando...
-  </footer>
-  
-  <!-- Botão discreto para trocar de usuário (por exemplo no topo) -->
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-  <span style="font-size:0.8rem; color:#4b5563;">
-    Usuário atual: <strong><span id="currentUserLabel">não logado</span></strong>
-  </span>
-  <button id="openLoginModalBtn" class="secondary-btn" style="font-size:0.75rem; padding:4px 8px;">
-    Trocar usuário
-  </button>
-</div>
-
-<!-- MODAL DE LOGIN -->
-<div id="loginModal" class="modal-overlay">
-  <div class="modal-content">
-    <h2>Login</h2>
-    <p style="font-size:0.85rem; color:#6b7280; margin-top:4px;">
-      Entre com seu <strong>usuário</strong> e <strong>senha</strong>.
-    </p>
+<!-- LOGIN MODAL (bloqueia acesso) -->
+<div id="loginModal" class="modal-overlay modal-hidden" role="dialog" aria-modal="true">
+  <div class="modal-content" role="document">
+    <h3>Entrar</h3>
+    <p style="color:var(--muted); margin:6px 0 10px 0;">Faça login para acessar seus investimentos. A senha é usada para derivar a chave de criptografia localmente.</p>
 
     <label for="modalLoginUserId">Usuário</label>
-    <input id="modalLoginUserId" placeholder="Ex.: dionatan" />
+    <input id="modalLoginUserId" autocomplete="username"/>
 
     <label for="modalLoginPassword">Senha</label>
-    <input id="modalLoginPassword" type="password" placeholder="Sua senha" />
+    <input id="modalLoginPassword" type="password" autocomplete="current-password"/>
+
+    <div style="font-size:0.85rem; color:var(--muted); margin-top:8px;">
+      Sem armazenamento de senha no navegador — a chave é derivada temporariamente (mais seguro).
+    </div>
 
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
-      <button id="modalCancelBtn" class="secondary-btn">Cancelar</button>
+      <button id="modalCancelBtn" class="secondary-btn">Sair</button>
       <button id="modalLoginBtn" class="primary-btn">Entrar</button>
     </div>
   </div>
 </div>
 
+<!-- Toast -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script>
-/* ====== CONFIG ====== */
+<div class="app">
+  <header>
+    <h1>Meus Investimentos</h1>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="font-size:0.9rem; color:var(--muted)">Usuário: <strong id="currentUserLabel">não logado</strong></div>
+      <button id="openLoginModalBtn" class="secondary-btn">Trocar usuário</button>
+      <button id="logoutBtn" class="secondary-btn">Sair</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT: Cadastro -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong>Novo lançamento</strong>
+        <div style="font-size:0.85rem; color:var(--muted)">(preencha e clique em adicionar)</div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <label>Tipo</label>
+        <select id="tipo" style="width:100%; padding:8px; border-radius:8px; margin-top:6px;">
+          <option value="acao">Ação</option>
+          <option value="fundo">Fundo</option>
+          <option value="cripto">Cripto</option>
+          <option value="renda_fixa">Renda fixa</option>
+        </select>
+
+        <label>Ticker</label>
+        <input id="ticker" placeholder="Ex.: PETR4, BTC" style="width:100%; padding:8px; margin-top:6px; border-radius:8px;" />
+
+        <label>Nome (opcional)</label>
+        <input id="nome" placeholder="Nome do ativo" style="width:100%; padding:8px; margin-top:6px; border-radius:8px;" />
+
+        <label>Corretora</label>
+        <select id="corretora" style="width:100%; padding:8px; border-radius:8px; margin-top:6px;">
+          <option>Nubank</option><option>XP</option><option>BTG Pactual</option><option>Mercado Bitcoin</option>
+        </select>
+
+        <label>Valor aplicado (BRL)</label>
+        <input id="valor" placeholder="5000,00" style="width:100%; padding:8px; margin-top:6px; border-radius:8px;" />
+
+        <label>Quantidade</label>
+        <input id="quantidade" placeholder="Ex.: 10" style="width:100%; padding:8px; margin-top:6px; border-radius:8px;" />
+
+        <label>Preço (opcional)</label>
+        <input id="preco" placeholder="Preço unitário (opcional)" style="width:100%; padding:8px; margin-top:6px; border-radius:8px;" />
+
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button id="addBtn" class="primary-btn">Adicionar</button>
+          <button id="updatePricesBtn" class="secondary-btn">Atualizar preços</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Abas / Lista -->
+    <div>
+      <div class="card" style="margin-bottom:12px;">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="cadastro">Cadastro</button>
+          <button class="tab-btn" data-tab="lancamentos">Lançamentos</button>
+        </div>
+
+        <div id="tab-cadastro" class="tab-content active">
+          <div style="color:var(--muted); font-size:0.9rem;">Use o painel à esquerda para adicionar lançamentos (apenas após login).</div>
+        </div>
+
+        <div id="tab-lancamentos" class="tab-content" style="display:none;">
+          <div style="overflow:auto;">
+            <table>
+              <thead>
+                <tr><th>Tipo</th><th>Ticker</th><th>Nome</th><th>Corretora</th><th>Qtd</th><th>PM</th><th>Atual</th><th>Aplicado</th><th>Valor Atual</th><th>P/L</th><th></th></tr>
+              </thead>
+              <tbody id="lista"></tbody>
+            </table>
+            <div id="totais"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="statusCard" style="margin-bottom:12px;">
+        <div id="status" style="min-height:22px; color:var(--muted)">Status: aguardando ação</div>
+      </div>
+
+      <footer id="footerAtualizacao" class="card" style="text-align:center; font-size:0.85rem;">Última versão da aplicação: v1.0 — secure</footer>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =================================================
+   HTML+JS app completo — D (secure, modal login)
+   Ajuste: mudar PROXY_BASE_URL abaixo para seu Worker
+   ================================================= */
+
+///////////////////// CONFIG /////////////////////
 const APP_VERSION = "v1.0 — secure";
-const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev"; // ajusta aqui
+const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev"; // <-- ajuste aqui
 const SESSION_STORAGE_KEY = "meus_investimentos_session";
 const USER_ID_STORAGE_KEY = "meus_investimentos_user_id";
-const STORAGE_KEY = "meus_investimentos_v3_enc"; // armazenamos local um cache DESCRIPTOGRAFADO? opcional: keep encrypted local?
-/* ====== END CONFIG ====== */
+const STORAGE_KEY_ENC = "meus_investimentos_encrypted_cache_v1";
+//////////////////////////////////////////////////
 
-/* ====== ESTADO ====== */
+/* estado */
 let sessionToken = localStorage.getItem(SESSION_STORAGE_KEY) || "";
 let currentUserId = localStorage.getItem(USER_ID_STORAGE_KEY) || "";
-let cryptoKey = null; // CryptoKey (AES-GCM) - fica apenas em memória
-let investimentos = []; // dados em claro na memória após decriptar
+let cryptoKey = null;        // CryptoKey em memória (AES-GCM)
+let investimentos = [];      // dados em claro em memória
 
-/* ====== UI helpers (modal) ====== */
-function showModal() {
-  document.getElementById("loginModal").classList.remove("modal-hidden");
-  document.getElementById("appOverlayBlocker").style.display = "block";
+/* UI helpers */
+const toastEl = document.getElementById("toast");
+function toast(msg, time=2500){
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  setTimeout(()=>toastEl.classList.remove("show"), time);
 }
-function hideModal() {
-  document.getElementById("loginModal").classList.add("modal-hidden");
-  document.getElementById("appOverlayBlocker").style.display = "none";
+function setStatus(msg, type=""){
+  const el = document.getElementById("status");
+  if(!el) return;
+  el.textContent = msg || "";
+  el.className = "status " + (type||"");
 }
+function showModal(){ document.getElementById("loginModal").classList.remove("modal-hidden"); document.getElementById("appOverlayBlocker").style.display="block"; document.getElementById("modalLoginUserId").focus(); }
+function hideModal(){ document.getElementById("loginModal").classList.add("modal-hidden"); document.getElementById("appOverlayBlocker").style.display="none"; }
 
-/* ====== Criptografia no cliente (PBKDF2 + AES-GCM) ====== */
-async function deriveKey(password, saltHex) {
+/* ====== crypto helpers (PBKDF2 -> AES-GCM) ====== */
+function hexToUint8(hex){
+  if(!hex) return new Uint8Array();
+  const u8 = new Uint8Array(hex.length/2);
+  for(let i=0;i<u8.length;i++) u8[i]=parseInt(hex.substr(i*2,2),16);
+  return u8;
+}
+function uint8ToBase64(u8){
+  let s="";
+  for(let i=0;i<u8.length;i++) s += String.fromCharCode(u8[i]);
+  return btoa(s);
+}
+function base64ToUint8(b64){
+  const s = atob(b64);
+  const u8 = new Uint8Array(s.length);
+  for(let i=0;i<s.length;i++) u8[i]=s.charCodeAt(i);
+  return u8;
+}
+async function deriveKey(password, saltHex){
   const enc = new TextEncoder();
-  const passwordKey = await crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]);
-  // saltHex to Uint8Array
+  const passKey = await crypto.subtle.importKey("raw", enc.encode(password), {name:"PBKDF2"}, false, ["deriveKey"]);
   const salt = hexToUint8(saltHex);
   const key = await crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: 200000, hash: "SHA-256" },
-    passwordKey,
+    { name: "PBKDF2", hash:"SHA-256", salt, iterations: 200000 },
+    passKey,
     { name: "AES-GCM", length: 256 },
     false,
-    ["encrypt", "decrypt"]
+    ["encrypt","decrypt"]
   );
   return key;
 }
-function hexToUint8(hex) {
-  if (!hex) return new Uint8Array();
-  const res = new Uint8Array(hex.length/2);
-  for (let i=0;i<res.length;i++) res[i]=parseInt(hex.substr(i*2,2),16);
-  return res;
-}
-function uint8ToBase64(u8) {
-  let s = "";
-  for (let i=0;i<u8.length;i++) s+=String.fromCharCode(u8[i]);
-  return btoa(s);
-}
-function base64ToUint8(b64) {
-  const s = atob(b64);
-  const u8 = new Uint8Array(s.length);
-  for (let i=0;i<s.length;i++) u8[i]=s.charCodeAt(i);
-  return u8;
-}
-async function encryptJson(obj) {
-  if (!cryptoKey) throw new Error("Chave não derivada");
+async function encryptJson(obj){
+  if(!cryptoKey) throw new Error("Chave não derivada");
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const enc = new TextEncoder();
-  const plain = enc.encode(JSON.stringify(obj));
-  const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, cryptoKey, plain);
+  const encoder = new TextEncoder();
+  const plain = encoder.encode(JSON.stringify(obj));
+  const cipher = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, cryptoKey, plain);
   const combined = new Uint8Array(iv.byteLength + cipher.byteLength);
   combined.set(iv,0);
   combined.set(new Uint8Array(cipher), iv.byteLength);
-  return uint8ToBase64(combined);
+  return uint8ToBase64(combined); // string
 }
-async function decryptJson(b64) {
-  if (!cryptoKey) throw new Error("Chave não derivada");
+async function decryptJson(b64){
+  if(!cryptoKey) throw new Error("Chave não derivada");
   const all = base64ToUint8(b64);
   const iv = all.slice(0,12);
   const data = all.slice(12);
-  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, cryptoKey, data);
+  const plain = await crypto.subtle.decrypt({ name:"AES-GCM", iv }, cryptoKey, data);
   const dec = new TextDecoder();
   return JSON.parse(dec.decode(plain));
 }
 
-/* ====== UI helpers (status, footer) ====== */
-function setStatus(msg, type="") {
-  const el = document.getElementById("status");
-  if (!el) return;
-  el.textContent = msg||"";
-  el.className = "status"+(type? " "+type:"");
+/* ====== API calls ====== */
+async function apiLogin(userId, password){
+  const resp = await fetch(`${PROXY_BASE_URL}/auth/login`, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ userId, password })
+  });
+  const j = await resp.json().catch(()=>({}));
+  if(!resp.ok) throw new Error(j.error || "Erro no login");
+  return j; // {ok, sessionId, user:{id,name}, encryptionSalt}
 }
-function atualizarRodape() {
-  const footer = document.getElementById("footerAtualizacao");
-  if (!footer) return;
-  footer.textContent = "Última versão da aplicação: " + APP_VERSION;
+async function apiGetData(){
+  const resp = await fetch(`${PROXY_BASE_URL}/data`, {
+    headers: { Authorization:`Bearer ${sessionToken}` }
+  });
+  if(!resp.ok) throw new Error("Erro ao buscar dados na nuvem");
+  const j = await resp.json().catch(()=>({}));
+  return j; // {ok:true, userId, data: "base64string" | null}
+}
+async function apiPostData(encryptedString){
+  const resp = await fetch(`${PROXY_BASE_URL}/data`, {
+    method:"POST",
+    headers: { "Content-Type":"text/plain", Authorization:`Bearer ${sessionToken}` },
+    body: encryptedString
+  });
+  if(!resp.ok) throw new Error("Erro ao salvar dados na nuvem");
+  return await resp.json().catch(()=>({}));
 }
 
-/* ====== LOGIN (faz fetch /auth/login e deriva chave) ====== */
-async function fazerLoginModal() {
-  const userId = document.getElementById("modalLoginUserId").value.trim();
-  const password = document.getElementById("modalLoginPassword").value;
-  if (!userId || !password) { alert("Informe usuário e senha."); return; }
-  setStatus("Autenticando...", "");
-  try {
-    const resp = await fetch(`${PROXY_BASE_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type":"application/json" },
-      body: JSON.stringify({ userId, password })
-    });
-    const json = await resp.json().catch(()=>({}));
-    if (!resp.ok || !json.ok || !json.sessionId) {
-      alert(json.error || "Falha ao autenticar.");
-      setStatus("Falha ao autenticar.", "error");
-      return;
+/* ====== Preços (cripto/coingecko + BRAPI via proxy) ====== */
+const MAPA_CRIPTO = { BTC:{id:"bitcoin", nome:"Bitcoin"}, ETH:{id:"ethereum", nome:"Ethereum"}, SOL:{id:"solana", nome:"Solana"}, ADA:{id:"cardano", nome:"Cardano"}, XRP:{id:"ripple", nome:"XRP"}, BNB:{id:"binancecoin", nome:"BNB"} };
+
+async function buscarPrecoCripto(ticker){
+  const up = ticker.toUpperCase().trim();
+  const info = MAPA_CRIPTO[up];
+  if(!info) return { valido:false };
+  try{
+    const resp = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(info.id)}&vs_currencies=brl`);
+    if(!resp.ok) return { valido:false };
+    const data = await resp.json();
+    const valor = data[info.id]?.brl;
+    return { valido: typeof valor === "number", preco: valor, nomeApi: info.nome };
+  }catch(e){ console.error(e); return { valido:false }; }
+}
+
+async function buscarPrecoAcaoOuFundo(ticker){
+  const clean = ticker.toUpperCase().trim();
+  try{
+    const resp = await fetch(`${PROXY_BASE_URL}/quote?symbol=${encodeURIComponent(clean)}`);
+    if(!resp.ok) return { valido:false };
+    const data = await resp.json().catch(()=>({}));
+    const r = data.results && data.results[0];
+    if(!r || typeof r.regularMarketPrice !== "number") return { valido:false };
+    return { valido:true, preco: r.regularMarketPrice, nomeApi: r.longName || r.shortName || clean };
+  }catch(e){ console.error(e); return { valido:false }; }
+}
+
+/* ====== Render / helpers UI ====== */
+function formatCurrency(v){ if(v==null||isNaN(v)) return "-"; return v.toLocaleString("pt-BR",{style:"currency", currency:"BRL"}); }
+function formatPercent(v){ if(v==null||isNaN(v)) return "-"; return v.toFixed(2).replace(".",",")+" %"; }
+function labelTipo(tipo){ switch(tipo){ case "renda_fixa": return "Renda fixa"; case "fundo": return "Fundo"; case "cripto": return "Cripto"; case "acao": return "Ação"; default: return tipo; } }
+
+function render(){
+  const tbody = document.getElementById("lista");
+  tbody.innerHTML = "";
+  const totais = { renda_fixa:{aplicado:0,atual:0}, fundo:{aplicado:0,atual:0}, cripto:{aplicado:0,atual:0}, acao:{aplicado:0,atual:0} };
+  investimentos.forEach((inv, index) => {
+    const valorAplicado = inv.valor || 0;
+    const quantidade = inv.quantidade || 0;
+    const precoAtual = inv.preco || 0;
+    const valorAtual = (quantidade && precoAtual) ? (quantidade * precoAtual) : (precoAtual || valorAplicado);
+    const precoMedio = (quantidade && valorAplicado) ? (valorAplicado / quantidade) : (valorAplicado || null);
+    const plValor = (valorAtual || 0) - (valorAplicado || 0);
+    const plPercent = valorAplicado ? (plValor / valorAplicado) * 100 : null;
+    if(totais[inv.tipo]) { totais[inv.tipo].aplicado += valorAplicado; totais[inv.tipo].atual += valorAtual; }
+
+    const tr = document.createElement("tr");
+    const tdTipo = document.createElement("td"); const span = document.createElement("span"); span.textContent = labelTipo(inv.tipo); span.className = "badge tipo-" + inv.tipo; tdTipo.appendChild(span);
+    const tdTicker = document.createElement("td"); tdTicker.textContent = inv.ticker || "-";
+    const tdNome = document.createElement("td"); tdNome.textContent = inv.nome || "-";
+    const tdCor = document.createElement("td"); tdCor.textContent = inv.corretora || "-";
+    const tdQtd = document.createElement("td"); tdQtd.textContent = quantidade ? quantidade : "-";
+    const tdPM = document.createElement("td"); tdPM.textContent = formatCurrency(precoMedio);
+    const tdPA = document.createElement("td"); tdPA.textContent = formatCurrency(precoAtual);
+    const tdAplic = document.createElement("td"); tdAplic.textContent = formatCurrency(valorAplicado);
+    const tdValAtual = document.createElement("td"); tdValAtual.textContent = formatCurrency(valorAtual);
+    const tdPL = document.createElement("td"); tdPL.textContent = formatPercent(plPercent);
+
+    const tdAcoes = document.createElement("td");
+    const btnDel = document.createElement("button"); btnDel.textContent="Excluir"; btnDel.className="danger-btn";
+    btnDel.onclick = async ()=>{ investimentos.splice(index,1); await salvarDados(investimentos); render(); toast("Lançamento removido"); };
+    tdAcoes.appendChild(btnDel);
+
+    [tdTipo,tdTicker,tdNome,tdCor,tdQtd,tdPM,tdPA,tdAplic,tdValAtual,tdPL,tdAcoes].forEach(x=>tr.appendChild(x));
+    tbody.appendChild(tr);
+  });
+
+  const totaisDiv = document.getElementById("totais");
+  totaisDiv.innerHTML = "";
+  let totalCarteira = 0;
+  Object.entries(totais).forEach(([tipo,obj])=>{
+    if(obj.aplicado>0 || obj.atual>0){
+      const s = document.createElement("div");
+      s.textContent = `${labelTipo(tipo)} | Aplicado: ${formatCurrency(obj.aplicado)} | Atual: ${formatCurrency(obj.atual)} | P/L: ${formatPercent(obj.aplicado ? ((obj.atual-obj.aplicado)/obj.aplicado*100):null)}`;
+      totaisDiv.appendChild(s);
+      totalCarteira += obj.atual;
     }
-    // recebe salt para derivar chave
-    const saltHex = json.encryptionSalt;
-    // derive key locally
-    cryptoKey = await deriveKey(password, saltHex);
-    // salva sessão (token) e userId
-    sessionToken = json.sessionId;
-    currentUserId = json.user.id;
-    localStorage.setItem(SESSION_STORAGE_KEY, sessionToken);
-    localStorage.setItem(USER_ID_STORAGE_KEY, currentUserId);
-    // limpa senha do input
-    document.getElementById("modalLoginPassword").value = "";
-    // oculta modal e sincroniza dados
-    hideModal();
-    setStatus(`Logado como ${currentUserId}. Sincronizando...`, "success");
-    await sincronizarComNuvemAoAbrir();
-  } catch (e) {
-    console.error(e);
-    alert("Erro ao conectar ao servidor.");
-    setStatus("Erro ao conectar.", "error");
+  });
+  if(totalCarteira>0){
+    const s2 = document.createElement("div"); s2.style.fontWeight="600"; s2.style.marginTop="6px"; s2.textContent = `Total da carteira (valor atual): ${formatCurrency(totalCarteira)}`; totaisDiv.appendChild(s2);
   }
 }
 
-/* ====== LOGOUT ====== */
-function fazerLogout() {
+/* ====== persistência/encrypt + sync ====== */
+function salvarCacheLocalEncrypted(enc){
+  try{ localStorage.setItem(STORAGE_KEY_ENC, enc); }catch(e){ console.warn("cache local encriptado erro", e); }
+}
+function carregarCacheLocalEncrypted(){ try{ return localStorage.getItem(STORAGE_KEY_ENC); }catch(e){ return null; } }
+
+async function salvarDadosNuvem(dados){
+  if(!sessionToken) { console.warn("Sem sessão"); return; }
+  try{
+    const enc = await encryptJson(dados);
+    salvarCacheLocalEncrypted(enc);
+    await apiPostData(enc);
+  }catch(e){ console.error("erro salvar na nuvem", e); setStatus("Erro ao salvar na nuvem","error"); toast("Erro ao salvar na nuvem"); }
+}
+
+async function salvarDados(dados){
+  investimentos = dados;
+  // salva em background
+  salvarDadosNuvem(dados);
+}
+
+/* ====== sincronização inicial (busca encriptado e decripta) ====== */
+async function sincronizarComNuvemAoAbrir(){
+  if(!sessionToken){ setStatus("Sem sessão. Faça login.", ""); return; }
+  setStatus("Sincronizando dados da nuvem...", "");
+  try{
+    const j = await apiGetData();
+    if(j && j.data){
+      try{
+        const plain = await decryptJson(j.data);
+        investimentos = Array.isArray(plain) ? plain : [];
+        salvarCacheLocalEncrypted(j.data);
+        render();
+        setStatus("Dados sincronizados", "success");
+      }catch(e){
+        console.error("decrypt falhou", e);
+        investimentos = [];
+        render();
+        setStatus("Não foi possível decriptar os dados (senha errada?).", "error");
+        toast("Senha não corresponde aos dados criptografados. Faça login novamente.");
+        showModal();
+      }
+    } else {
+      // sem dados na nuvem: se tiver cache encriptado local e chave derivada, tenta carregar
+      const cached = carregarCacheLocalEncrypted();
+      if(cached && cryptoKey){
+        try{
+          investimentos = await decryptJson(cached);
+          render();
+          setStatus("Dados carregados do cache local", "success");
+        }catch(e){ investimentos = []; render(); setStatus("Nenhum dado disponível", ""); }
+      } else {
+        investimentos = [];
+        render();
+        setStatus("Sem dados na nuvem.", "");
+      }
+    }
+  }catch(e){ console.error(e); setStatus("Erro ao sincronizar", "error"); toast("Erro ao sincronizar com a nuvem"); }
+}
+
+/* ====== validarTicker (retorna {valido, preco, nomeApi}) ====== */
+async function validarTicker(tipo, ticker){
+  const upper = (ticker||"").toUpperCase().trim();
+  if(!upper && (tipo==="acao"||tipo==="fundo"||tipo==="cripto")) return { valido:false, msg:"Informe um ticker para esse tipo de ativo." };
+  if(tipo==="cripto"){
+    const info = MAPA_CRIPTO[upper];
+    if(!info) return { valido:false, msg:"Cripto não mapeada." };
+    const res = await buscarPrecoCripto(upper);
+    if(!res.valido) return { valido:false, msg:"Não foi possível validar cripto." };
+    return { valido:true, preco:res.preco, nomeApi:res.nomeApi };
+  }
+  if(tipo==="acao" || tipo==="fundo"){
+    const res = await buscarPrecoAcaoOuFundo(upper);
+    if(!res.valido) return { valido:false, msg:"Ticker não encontrado (BRAPI)." };
+    return { valido:true, preco:res.preco, nomeApi:res.nomeApi };
+  }
+  return { valido:true, preco:null, nomeApi:null };
+}
+
+/* ====== ações: adicionar, atualizar preços ====== */
+document.getElementById("addBtn").addEventListener("click", async ()=>{
+  if(!sessionToken || !cryptoKey){ toast("Faça login antes de adicionar"); return; }
+  const tipo = document.getElementById("tipo").value;
+  const ticker = document.getElementById("ticker").value.trim();
+  let nome = document.getElementById("nome").value.trim();
+  const corretora = document.getElementById("corretora").value;
+  const valor = parseFloat(document.getElementById("valor").value.replace(",","."));
+  const quantidadeRaw = document.getElementById("quantidade").value.replace(",",".");
+  const precoRaw = document.getElementById("preco").value.replace(",",".");
+  let quantidade = quantidadeRaw ? parseFloat(quantidadeRaw) : null;
+  let preco = precoRaw ? parseFloat(precoRaw) : null;
+
+  if(!valor || isNaN(valor)){ alert("Informe o valor aplicado."); return; }
+  if((tipo==="acao" || tipo==="fundo" || tipo==="cripto") && (!quantidade || isNaN(quantidade))){ alert("Informe a quantidade para ações, fundos e cripto."); return; }
+
+  setStatus("Validando ticker...", "");
+  const valida = await validarTicker(tipo, ticker);
+  if(!valida.valido){ toast(valida.msg || "Ticker inválido"); setStatus(valida.msg || "Erro", "error"); return; }
+
+  if(!nome && valida.nomeApi) nome = valida.nomeApi;
+  if(!preco && valida.preco) preco = valida.preco;
+  if((!quantidade || isNaN(quantidade)) && tipo==="renda_fixa") quantidade = 1;
+
+  investimentos.push({ tipo, ticker: ticker || null, nome: nome || ticker || "", corretora, valor, quantidade, preco, criadoEm: new Date().toISOString() });
+  await salvarDados(investimentos);
+  render();
+  toast("Lançamento adicionado");
+  setStatus("Lançamento adicionado.", "success");
+
+  // limpar campos
+  ["ticker","nome","valor","quantidade","preco"].forEach(id=>document.getElementById(id).value="");
+});
+
+document.getElementById("updatePricesBtn").addEventListener("click", async ()=>{
+  if(!sessionToken || !cryptoKey){ toast("Faça login antes de atualizar"); return; }
+  if(!investimentos.length){ setStatus("Nenhum investimento para atualizar."); return; }
+  setStatus("Atualizando preços...", "");
+  let atualizados = 0;
+  for(let inv of investimentos){
+    if(!inv.ticker) continue;
+    if(inv.tipo==="cripto"){
+      const r = await buscarPrecoCripto(inv.ticker);
+      if(r.valido && r.preco!=null){ inv.preco = r.preco; if(!inv.nome && r.nomeApi) inv.nome = r.nomeApi; atualizados++; }
+    } else if(inv.tipo==="acao" || inv.tipo==="fundo"){
+      const r = await buscarPrecoAcaoOuFundo(inv.ticker);
+      if(r.valido && r.preco!=null){ inv.preco = r.preco; if(!inv.nome && r.nomeApi) inv.nome = r.nomeApi; atualizados++; }
+    }
+  }
+  await salvarDados(investimentos);
+  render();
+  if(atualizados>0) setStatus(`Preços atualizados para ${atualizados} ativo(s).`, "success"); else setStatus("Nenhum preço atualizado.", "error");
+});
+
+/* ====== Login modal handlers ====== */
+async function fazerLoginModal(){
+  const userId = document.getElementById("modalLoginUserId").value.trim();
+  const password = document.getElementById("modalLoginPassword").value;
+  if(!userId || !password){ alert("Informe usuário e senha."); return; }
+  setStatus("Autenticando...", "");
+  try{
+    const j = await apiLogin(userId, password);
+    // j: { ok, sessionId, user:{id,name}, encryptionSalt }
+    if(!j || !j.ok || !j.sessionId){ toast(j.error || "Falha no login"); setStatus("Falha no login","error"); return; }
+    sessionToken = j.sessionId;
+    currentUserId = j.user.id;
+    localStorage.setItem(SESSION_STORAGE_KEY, sessionToken);
+    localStorage.setItem(USER_ID_STORAGE_KEY, currentUserId);
+
+    // derive key locally
+    cryptoKey = await deriveKey(password, j.encryptionSalt);
+    document.getElementById("modalLoginPassword").value = "";
+    document.getElementById("currentUserLabel").textContent = currentUserId;
+    hideModal();
+    setStatus(`Logado como ${currentUserId}. Sincronizando...`, "success");
+    await sincronizarComNuvemAoAbrir();
+  }catch(e){ console.error(e); toast("Erro ao autenticar"); setStatus("Erro ao autenticar","error"); }
+}
+
+function fazerLogout(){
   sessionToken = "";
   cryptoKey = null;
   currentUserId = "";
@@ -456,187 +552,55 @@ function fazerLogout() {
   investimentos = [];
   render();
   setStatus("Sessão encerrada.", "");
-  // abrir modal para novo login
+  document.getElementById("currentUserLabel").textContent = "não logado";
   showModal();
 }
 
-/* ====== Sincronizar / salvar dados (criptografado) ====== */
-async function sincronizarComNuvemAoAbrir() {
-  if (!sessionToken) {
-    setStatus("Sem sessão. Faça login.", "");
-    return;
+/* ====== Tabs logic ====== */
+function setActiveTab(tab){
+  document.querySelectorAll(".tab-btn").forEach(b=>{ b.classList.toggle("active", b.getAttribute("data-tab")===tab); });
+  document.querySelectorAll(".tab-content").forEach(c=>{ c.style.display = (c.id==="tab-"+tab) ? "block":"none"; });
+  try{ localStorage.setItem("meus_investimentos_tab", tab); }catch(e){}
+}
+document.querySelectorAll(".tab-btn").forEach(btn=>btn.addEventListener("click", ()=> setActiveTab(btn.getAttribute("data-tab")) ));
+
+/* ====== Pull to refresh (touch) ====== */
+let startY = 0; let puxando = false; const mensagemPTR = document.getElementById("ptr-message");
+window.addEventListener("touchstart", e => { if(window.scrollY===0){ startY = e.touches[0].clientY; puxando=true; }});
+window.addEventListener("touchmove", e => { if(!puxando) return; const atualY = e.touches[0].clientY; const distancia = atualY - startY; if(distancia>50) mensagemPTR.style.display="block"; else mensagemPTR.style.display="none"; });
+window.addEventListener("touchend", e => { if(!puxando) return; puxando=false; mensagemPTR.style.display="none"; const endY = e.changedTouches[0].clientY; if(endY - startY > 80){ location.reload(); } });
+
+/* ====== attach modal buttons & enter key handling ====== */
+(function attachLoginHandlers(){
+  function safe(id){ return document.getElementById(id); }
+  function add(){
+    const loginBtn = safe("modalLoginBtn"), cancelBtn = safe("modalCancelBtn"), userInput = safe("modalLoginUserId"), passInput = safe("modalLoginPassword");
+    if(!loginBtn) return console.warn("#modalLoginBtn não encontrado");
+    loginBtn.replaceWith(loginBtn.cloneNode(true));
+    const fresh = safe("modalLoginBtn");
+    fresh.addEventListener("click", async (e)=>{ e.preventDefault(); await fazerLoginModal(); });
+    cancelBtn?.addEventListener("click", ()=>{ /* fechar tudo? apenas recarrega página para garantir */ location.reload(); });
+    passInput?.addEventListener("keydown", (ev)=>{ if(ev.key==="Enter"){ ev.preventDefault(); fresh.click(); }});
   }
-  setStatus("Buscando dados criptografados...", "");
-  try {
-    const resp = await fetch(`${PROXY_BASE_URL}/data`, {
-      headers: { Authorization: `Bearer ${sessionToken}` }
-    });
-    if (!resp.ok) {
-      setStatus("Falha ao buscar dados da nuvem.", "error");
-      return;
-    }
-    const json = await resp.json();
-    if (json.data) {
-      // decrypt
-      try {
-        const plain = await decryptJson(json.data);
-        investimentos = plain;
-        salvarCacheLocalEncrypted(json.data); // opcional cache encriptado local
-        render();
-        setStatus("Dados sincronizados (decriptados).", "success");
-      } catch (e) {
-        console.error("Erro ao decriptar:", e);
-        investimentos = [];
-        render();
-        setStatus("Não foi possível decriptar os dados (senha errada?).", "error");
-        // forçar re-login se preferir:
-        showModal();
-      }
-    } else {
-      investimentos = [];
-      render();
-      setStatus("Sem dados na nuvem.", "");
-    }
-  } catch (e) {
-    console.error(e);
-    setStatus("Erro ao sincronizar com a nuvem.", "error");
-  }
-}
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", add); else add();
+})();
 
-// salva dados criptografados na nuvem (antes criptografa)
-async function salvarDadosNuvem(dados) {
-  if (!sessionToken) { console.warn("Sem sessão."); return; }
-  try {
-    const encrypted = await encryptJson(dados); // string base64
-    // opcional: salva cache local do encriptado
-    salvarCacheLocalEncrypted(encrypted);
-    await fetch(`${PROXY_BASE_URL}/data`, {
-      method: "POST",
-      headers: { "Content-Type":"text/plain", Authorization: `Bearer ${sessionToken}` },
-      body: encrypted
-    });
-  } catch (e) {
-    console.error("Erro ao salvar na nuvem:", e);
-    setStatus("Erro ao salvar na nuvem.", "error");
-  }
-}
-
-/* opcional: armazenar uma cópia encriptada local para performance/offline */
-function salvarCacheLocalEncrypted(encrypted) {
-  try { localStorage.setItem(STORAGE_KEY, encrypted); } catch(e) { console.warn(e); }
-}
-function carregarCacheLocalEncrypted() {
-  try { return localStorage.getItem(STORAGE_KEY); } catch(e){ return null; }
-}
-
-/* ====== salvarDados (central) ====== */
-function salvarDados(dados) {
-  // mantém em memória em claro
-  investimentos = dados;
-  // salva encriptado na nuvem (não await)
-  salvarDadosNuvem(dados);
-}
-
-/* ====== Funções de UI / render da tabela (sem alteração conceitual) ====== */
-/* Abaixo simplifiquei: render usa 'investimentos' em memória já decriptados */
-function formatCurrency(v){ if (v==null||isNaN(v)) return "-"; return v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
-function formatPercent(v){ if (v==null||isNaN(v)) return "-"; return v.toFixed(2).replace(".",",")+" %"; }
-function labelTipo(t){ switch(t){case"renda_fixa":return"Renda fixa";case"fundo":return"Fundo";case"cripto":return"Cripto";case"acao":return"Ação";default:return t;} }
-
-function render(){
-  const tbody = document.getElementById("lista");
-  if (!tbody) return;
-  tbody.innerHTML="";
-  const totais = { renda_fixa:{aplicado:0,atual:0},fundo:{aplicado:0,atual:0},cripto:{aplicado:0,atual:0},acao:{aplicado:0,atual:0} };
-  investimentos.forEach((inv,index)=>{
-    const valorAplicado = inv.valor||0;
-    const quantidade = inv.quantidade||0;
-    const precoAtual = inv.preco||0;
-    const valorAtual = (quantidade && precoAtual)? quantidade*precoAtual : (precoAtual || valorAplicado);
-    const precoMedio = (quantidade && valorAplicado)? (valorAplicado/quantidade) : (valorAplicado || null);
-    const plValor = (valorAtual||0) - (valorAplicado||0);
-    const plPercent = valorAplicado ? (plValor/valorAplicado)*100 : null;
-    if (totais[inv.tipo]) { totais[inv.tipo].aplicado += valorAplicado; totais[inv.tipo].atual += valorAtual; }
-    const tr = document.createElement("tr");
-    const tdTipo = document.createElement("td"); const span=document.createElement("span"); span.textContent=labelTipo(inv.tipo); span.className="badge tipo-"+inv.tipo; tdTipo.appendChild(span);
-    const tdTicker=document.createElement("td"); tdTicker.textContent=inv.ticker||"-";
-    const tdNome=document.createElement("td"); tdNome.textContent=inv.nome||"-";
-    const tdCorretora=document.createElement("td"); tdCorretora.textContent=inv.corretora||"-";
-    const tdQtd=document.createElement("td"); tdQtd.textContent=quantidade?quantidade:"-";
-    const tdPM=document.createElement("td"); tdPM.textContent=formatCurrency(precoMedio);
-    const tdPrecoAtual=document.createElement("td"); tdPrecoAtual.textContent=formatCurrency(precoAtual);
-    const tdAplicado=document.createElement("td"); tdAplicado.textContent=formatCurrency(valorAplicado);
-    const tdValorAtual=document.createElement("td"); tdValorAtual.textContent=formatCurrency(valorAtual);
-    const tdPL=document.createElement("td"); tdPL.textContent=formatPercent(plPercent);
-    const tdAcoes=document.createElement("td"); const btnDel=document.createElement("button"); btnDel.textContent="Excluir"; btnDel.className="danger-btn"; btnDel.onclick=()=>{ investimentos.splice(index,1); salvarDados(investimentos); render(); }; tdAcoes.appendChild(btnDel);
-    [tdTipo,tdTicker,tdNome,tdCorretora,tdQtd,tdPM,tdPrecoAtual,tdAplicado,tdValorAtual,tdPL,tdAcoes].forEach(x=>tr.appendChild(x));
-    tbody.appendChild(tr);
-  });
-  const totaisDiv = document.getElementById("totais"); if (!totaisDiv) return; totaisDiv.innerHTML="";
-  let totalCarteira=0;
-  Object.entries(totais).forEach(([tipo,obj])=>{
-    if (obj.aplicado>0||obj.atual>0){
-      const span=document.createElement("span"); totalCarteira+=obj.atual; const plTipo = obj.aplicado? ((obj.atual-obj.aplicado)/obj.aplicado)*100 : null;
-      span.textContent = `${labelTipo(tipo)} | Aplicado: ${formatCurrency(obj.aplicado)} | Atual: ${formatCurrency(obj.atual)} | P/L: ${formatPercent(plTipo)}`;
-      totaisDiv.appendChild(span);
-    }
-  });
-  if (totalCarteira>0){ const spanTotal=document.createElement("span"); spanTotal.style.marginTop="6px"; spanTotal.style.fontWeight="600"; spanTotal.textContent = "Total da carteira (valor atual): " + formatCurrency(totalCarteira); totaisDiv.appendChild(spanTotal); }
-}
-
-/* ====== Lógica de adicionar ativo (mantida, mas exige sessão) ====== */
-document.getElementById("addBtn")?.addEventListener("click", async ()=>{
-  if (!sessionToken || !cryptoKey) { alert("Faça login antes de adicionar lançamentos."); return; }
-  const tipo = document.getElementById("tipo").value;
-  const ticker = document.getElementById("ticker").value.trim();
-  let nome = document.getElementById("nome").value.trim();
-  const corretora = document.getElementById("corretora").value;
-  const valor = parseFloat(document.getElementById("valor").value.replace(",","."));
-  const quantidadeRaw = document.getElementById("quantidade").value.replace(",",".");
-  const precoRaw = document.getElementById("preco").value.replace(",",".");
-  let quantidade = quantidadeRaw?parseFloat(quantidadeRaw):null;
-  let preco = precoRaw?parseFloat(precoRaw):null;
-  if (!valor||isNaN(valor)){ alert("Informe o valor aplicado total."); return; }
-  if ((tipo==="acao"||tipo==="fundo"||tipo==="cripto") && (!quantidade||isNaN(quantidade))){ alert("Para ações, fundos e cripto informe a quantidade."); return; }
-  // validação externa de ticker opcional (mantém suas funções anteriores se quiser)
-  investimentos.push({ tipo, ticker: ticker||null, nome: nome||ticker||"", corretora, valor, quantidade, preco, criadoEm: new Date().toISOString() });
-  salvarDados(investimentos);
-  alert("Lançamento adicionado com sucesso!");
-  ["ticker","nome","valor","quantidade","preco"].forEach(id=>document.getElementById(id).value="");
-  render();
-  setStatus("Lançamento adicionado.", "success");
-});
-
-/* ====== Atualizar preços (mantém sua função existente) ====== */
-/* Reaproveite suas funções buscarPrecoCripto e buscarPrecoAcaoOuFundo aqui (não incluídas por brevidade).
-   Antes de rodar atualizarPrecosMercado, verifique sessionToken/cryptoKey se for necessário. */
-
-/* ====== Inicialização ====== */
-async function init() {
-  atualizarRodape();
-  // ligar botões modal
-  document.getElementById("modalLoginBtn")?.addEventListener("click", fazerLoginModal);
-  document.getElementById("modalCancelBtn")?.addEventListener("click", ()=>{ /* opcional: fechar modal */ });
-  document.getElementById("openLoginModalBtn")?.addEventListener("click", ()=>{ showModal(); });
-  document.getElementById("logoutBtn")?.addEventListener("click", fazerLogout);
-
-  // se tiver sessão no localStorage, abre modal mas com userId preenchido e pede senha
-  if (!sessionToken) {
-    showModal();
-    // opcional: preencher usuário se salvo
+/* ====== Init on load ====== */
+(async function init(){
+  document.getElementById("footerAtualizacao").textContent = "Última versão da aplicação: " + APP_VERSION;
+  // restore tab
+  const st = localStorage.getItem("meus_investimentos_tab"); if(st) setActiveTab(st);
+  // attach controls
+  document.getElementById("openLoginModalBtn").addEventListener("click", ()=>{ document.getElementById("modalLoginUserId").value = currentUserId || ""; showModal(); });
+  document.getElementById("logoutBtn").addEventListener("click", ()=>{ if(confirm("Deseja finalizar a sessão?")) fazerLogout(); });
+  // se tiver sessão mas não tiver key derivada, pede senha (abrir modal)
+  if(!sessionToken){ showModal(); } else {
     document.getElementById("modalLoginUserId").value = currentUserId || "";
-  } else {
-    // se houver sessão, pedimos a senha para derivar chave antes de sincronizar:
-    // para segurança, a sessão por si só NÃO permite decriptar os dados: precisa da senha do usuário local
-    // então abrimos modal pedindo senha (userId já preenchido)
-    document.getElementById("modalLoginUserId").value = currentUserId || "";
-    showModal();
+    showModal(); // pede senha para derivar chave
   }
-
   render();
-}
+})();
 
-init();
 </script>
 </body>
 </html>
