@@ -519,29 +519,88 @@ document.getElementById("updatePricesBtn").addEventListener("click", async ()=>{
 });
 
 /* ====== Login modal handlers ====== */
-async function fazerLoginModal(){
-  const userId = document.getElementById("modalLoginUserId").value.trim();
-  const password = document.getElementById("modalLoginPassword").value;
-  if(!userId || !password){ alert("Informe usuário e senha."); return; }
+async function fazerLoginModal() {
+  const userIdEl = document.getElementById("modalLoginUserId");
+  const passEl = document.getElementById("modalLoginPassword");
+  const userId = userIdEl ? userIdEl.value.trim() : "";
+  const password = passEl ? passEl.value : "";
+
+  if (!userId || !password) {
+    alert("Informe usuário e senha.");
+    return;
+  }
+
   setStatus("Autenticando...", "");
-  try{
-    const j = await apiLogin(userId, password);
-    // j: { ok, sessionId, user:{id,name}, encryptionSalt }
-    if(!j || !j.ok || !j.sessionId){ toast(j.error || "Falha no login"); setStatus("Falha no login","error"); return; }
-    sessionToken = j.sessionId;
-    currentUserId = j.user.id;
+  try {
+    const resp = await fetch(`${PROXY_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, password }),
+    });
+
+    // lê texto cru primeiro (protege contra JSON inválido)
+    const text = await resp.text();
+
+    let json;
+    try { json = text ? JSON.parse(text) : null; } catch (e) { json = null; }
+
+    console.log("login response status:", resp.status, resp.statusText, "body:", json ?? text);
+
+    if (!resp.ok) {
+      // Mostra erro detalhado se existir
+      const message = (json && json.error) ? json.error : (text || `HTTP ${resp.status}`);
+      toast("Erro: " + message, 4000);
+      setStatus("Falha ao autenticar: " + message, "error");
+      return;
+    }
+
+    if (!json || !json.ok || !json.sessionId) {
+      const message = (json && json.error) ? json.error : "Resposta de login inválida.";
+      toast(message, 4000);
+      setStatus("Erro ao autenticar: " + message, "error");
+      return;
+    }
+
+    // sucesso
+    sessionToken = json.sessionId;
+    currentUserId = json.user && json.user.id ? json.user.id : userId;
     localStorage.setItem(SESSION_STORAGE_KEY, sessionToken);
     localStorage.setItem(USER_ID_STORAGE_KEY, currentUserId);
 
-    // derive key locally
-    cryptoKey = await deriveKey(password, j.encryptionSalt);
-    document.getElementById("modalLoginPassword").value = "";
+    // derive key localmente usando salt retornado
+    if (!json.encryptionSalt) {
+      toast("Login OK, mas sem encryptionSalt (problema no servidor).", 4000);
+      setStatus("Login OK mas sem salt.", "error");
+      return;
+    }
+
+    try {
+      cryptoKey = await deriveKey(password, json.encryptionSalt);
+    } catch (e) {
+      console.error("Erro ao derivar chave:", e);
+      toast("Erro ao derivar chave local (ver console).", 4000);
+      setStatus("Erro ao derivar chave.", "error");
+      return;
+    }
+
+    // limpa senha do input
+    if (passEl) passEl.value = "";
+    if (userIdEl) userIdEl.blur();
+
     document.getElementById("currentUserLabel").textContent = currentUserId;
     hideModal();
     setStatus(`Logado como ${currentUserId}. Sincronizando...`, "success");
     await sincronizarComNuvemAoAbrir();
-  }catch(e){ console.error(e); toast("Erro ao autenticar"); setStatus("Erro ao autenticar","error"); }
+    toast("Login efetuado com sucesso", 2000);
+
+  } catch (err) {
+    console.error("Erro no fetch de login:", err);
+    // erro de rede / CORS / DNS / HTTPS
+    toast("Erro ao conectar ao servidor. Verifique a URL e CORS.", 5000);
+    setStatus("Erro ao conectar ao servidor.", "error");
+  }
 }
+
 
 function fazerLogout(){
   sessionToken = "";
