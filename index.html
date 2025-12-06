@@ -181,12 +181,21 @@
 
 </head>
 <body>
-
+	<div id="appOverlayBlocker"></div>
   <!-- Mensagem do pull-to-refresh -->
   <div id="ptr-message">↻ Solte para atualizar a página...</div>
 
-  <h1>Meus Investimentos</h1>
-  
+  <!-- Abas -->
+  <div class="cabecalho">
+   <header>
+    <h1>Meus Investimentos</h1>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="font-size:0.9rem; color:var(--muted)">Usuário: <strong id="currentUserLabel">não logado</strong></div>
+      <button id="openLoginModalBtn" class="secondary-btn">Trocar usuário</button>
+      <button id="logoutBtn" class="secondary-btn">Sair</button>
+    </div>
+  </header>
+  </div>
   
   <!-- Abas -->
   <div class="tabs">
@@ -199,7 +208,7 @@
     <div class="card">
       <h2 style="font-size:1rem; margin-top:0;">Novo lançamento</h2>
 
-      <label for="tipo">Tipo</label>
+      <label for="tipo">Grupo</label>
       <select id="tipo">
         <option value="renda_fixa">Renda fixa</option>
         <option value="fundo">Fundo (FII/ETF/Fundo)</option>
@@ -207,10 +216,10 @@
         <option value="acao">Ação</option>
       </select>
 
-      <label for="ticker">Ticker / Código (para preço e validação)</label>
+      <label for="ticker">Código do ativo</label>
       <input id="ticker" placeholder="Ex.: PETR4, IVVB11, BTC, ETH..." />
 
-      <label for="nome">Nome do ativo (deixa em branco para preencher automático)</label>
+      <label for="nome">Nome do ativo (opcional)</label>
       <input id="nome" placeholder="Se vazio, usa o nome retornado pela API" />
 
       <label for="corretora">Corretora / Banco</label>
@@ -252,9 +261,9 @@
         <table>
           <thead>
             <tr>
-              <th>Tipo</th>
-              <th>Ticker</th>
+              <th>Grupo</th>
               <th>Ativo</th>
+              <th>Descrição</th>
               <th>Corretora</th>
               <th>Qtd</th>
               <th>Preço médio</th>
@@ -288,7 +297,7 @@
 <div id="loginModal" class="modal-overlay modal-hidden" role="dialog" aria-modal="true">
   <div class="modal-content" role="document">
     <h3>Entrar</h3>
-    <p style="color:var(--muted); margin:6px 0 10px 0;">Faça login para acessar seus investimentos. A senha é usada para derivar a chave de criptografia localmente.</p>
+    <p style="color:var(--muted); margin:6px 0 10px 0;">Faça login para acessar seus investimentos.</p>
 
     <label for="modalLoginUserId">Usuário</label>
     <input id="modalLoginUserId" autocomplete="username"/>
@@ -296,12 +305,12 @@
     <label for="modalLoginPassword">Senha</label>
     <input id="modalLoginPassword" type="password" autocomplete="current-password"/>
 
-    <div style="font-size:0.85rem; color:var(--muted); margin-top:8px;">
+    <!-- div style="font-size:0.85rem; color:var(--muted); margin-top:8px;">
       Sem armazenamento de senha no navegador — a chave é derivada temporariamente (mais seguro).
-    </div>
+    </div>-->
 
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
-      <button id="modalCancelBtn" class="secondary-btn">Sair</button>
+      <button id="modalCancelBtn" class="secondary-btn">Cancelar</button>
       <button id="modalLoginBtn" class="primary-btn">Entrar</button>
     </div>
   </div>

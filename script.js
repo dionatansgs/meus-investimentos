@@ -5,6 +5,7 @@
    ================================================= */
 
 ///////////////////// CONFIG /////////////////////
+//debugger;
 const APP_VERSION = "v1.0 — secure";
 const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev"; // <-- ajuste aqui
 const SESSION_STORAGE_KEY = "meus_investimentos_session";
@@ -31,7 +32,11 @@ function setStatus(msg, type=""){
   el.textContent = msg || "";
   el.className = "status " + (type||"");
 }
-function showModal(){ document.getElementById("loginModal").classList.remove("modal-hidden"); document.getElementById("appOverlayBlocker").style.display="block"; document.getElementById("modalLoginUserId").focus(); }
+function showModal(){ 
+  document.getElementById("loginModal").classList.remove("modal-hidden"); 
+  document.getElementById("appOverlayBlocker").style.display="block"; 
+  document.getElementById("modalLoginUserId").focus(); 
+}
 function hideModal(){ document.getElementById("loginModal").classList.add("modal-hidden"); document.getElementById("appOverlayBlocker").style.display="none"; }
 
 /* ====== crypto helpers (PBKDF2 -> AES-GCM) ====== */
@@ -443,7 +448,11 @@ window.addEventListener("touchend", e => { if(!puxando) return; puxando=false; m
     loginBtn.replaceWith(loginBtn.cloneNode(true));
     const fresh = safe("modalLoginBtn");
     fresh.addEventListener("click", async (e)=>{ e.preventDefault(); await fazerLoginModal(); });
-    cancelBtn?.addEventListener("click", ()=>{ /* fechar tudo? apenas recarrega página para garantir */ location.reload(); });
+    cancelBtn?.addEventListener("click", ()=>{  /*fechar tudo? apenas recarrega página para garantir  location.reload();*/ 
+      if(sessionToken){ 
+        hideModal();
+      }
+    });
     passInput?.addEventListener("keydown", (ev)=>{ if(ev.key==="Enter"){ ev.preventDefault(); fresh.click(); }});
   }
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", add); else add();
@@ -462,7 +471,7 @@ window.addEventListener("touchend", e => { if(!puxando) return; puxando=false; m
     document.getElementById("modalLoginUserId").value = currentUserId || "";
     showModal(); // pede senha para derivar chave
   }
-  render();
+  //render();
 })();
 
 
