@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt.br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Senha</title>
+    <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+    <!-- LOGIN MODAL (bloqueia acesso) -->
+  <div id="loginModal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal-content" role="document">
+    <h3>Entrar</h3>
+    <p style="color:var(--muted); margin:6px 0 10px 0;">Faça login para acessar seus investimentos.</p>
+
+    <label for="modalLoginUserId">Usuário</label>
+    <input id="modalLoginUserId" autocomplete="username"/>
+
+    <label for="modalLoginPassword">Senha</label>
+    <input id="modalLoginPassword" autocomplete="current-password"/>
+
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+      <button id="modalCancelBtn" class="secondary-btn">Cancelar</button>
+      <button id="modalLoginBtn" class="primary-btn">Entrar</button>
+    </div>
+  </div>
+</div>
+<script src="js/script2.js"></script>
+</body>
+</html>
