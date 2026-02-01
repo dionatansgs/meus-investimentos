@@ -5,13 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Meus Investimentos</title>
   <link rel="stylesheet" href="css/estilo.css">
-
+ 
 </head>
 
 
-
-
 <body>
+    <!--<script src="js/script.js"></script>-->
 	<div id="appOverlayBlocker"></div>
   <!-- Mensagem do pull-to-refresh -->
   <div id="ptr-message">↻ Solte para atualizar a página...</div>
@@ -124,7 +123,7 @@
   </footer>
  <!-- Toast -->
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<!-- LOGIN MODAL (bloqueia acesso) -->
+<!-- LOGIN MODAL (bloqueia acesso)-->
 <div id="loginModal" class="modal-overlay modal-hidden" role="dialog" aria-modal="true">
   <div class="modal-content" role="document">
     <h3>Entrar</h3>
@@ -134,18 +133,14 @@
     <input id="modalLoginUserId" autocomplete="username"/>
 
     <label for="modalLoginPassword">Senha</label>
-    <input id="modalLoginPassword" type="password" autocomplete="current-password"/>
-
-    <!-- div style="font-size:0.85rem; color:var(--muted); margin-top:8px;">
-      Sem armazenamento de senha no navegador — a chave é derivada temporariamente (mais seguro).
-    </div>-->
+    <!--<input id="modalLoginPassword" type="password" autocomplete="current-password"/>-->
 
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
       <button id="modalCancelBtn" class="secondary-btn">Cancelar</button>
       <button id="modalLoginBtn" class="primary-btn">Entrar</button>
     </div>
   </div>
-</div>
-<script src="script.js"></script>
+</div> 
+
 </body>
 </html>

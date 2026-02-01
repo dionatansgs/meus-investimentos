@@ -284,7 +284,7 @@ async function validarTicker(tipo, ticker){
 }
 
 /* ====== ações: adicionar, atualizar preços ====== */
-document.getElementById("addBtn").addEventListener("click", async ()=>{
+document.getElementById("addBtn").addEventListener("click", async ()=>{   
   if(!sessionToken || !cryptoKey){ toast("Faça login antes de adicionar"); return; }
   const tipo = document.getElementById("tipo").value;
   const ticker = document.getElementById("ticker").value.trim();
