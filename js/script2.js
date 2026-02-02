@@ -1,3 +1,11 @@
+function setStatus(msg, type=""){
+  const el = document.getElementById("status");
+  if(!el) return;
+  el.textContent = msg || "";
+  el.className = "status " + (type||"");
+}
+ 
+
  /* ====== Login modal handlers ====== */
  async function fazerLoginModal() {
     const userIdEl = document.getElementById("modalLoginUserId");
