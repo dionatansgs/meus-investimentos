@@ -7,10 +7,8 @@
 ///////////////////// CONFIG /////////////////////
 //debugger;
 const APP_VERSION = "v1.0 — secure";
-const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev"; // <-- ajuste aqui
-const SESSION_STORAGE_KEY = "meus_investimentos_session";
-const USER_ID_STORAGE_KEY = "meus_investimentos_user_id";
 const STORAGE_KEY_ENC = "meus_investimentos_encrypted_cache_v1";
+
 //////////////////////////////////////////////////
 
 /* estado */

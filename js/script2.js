@@ -1,8 +1,22 @@
+const PROXY_BASE_URL = "https://proxy-brapi.dionatan-sgs.workers.dev"; // <-- ajuste aqui
+const SESSION_STORAGE_KEY = "meus_investimentos_session";
+const USER_ID_STORAGE_KEY = "meus_investimentos_user_id";
+
+
+const toastEl = document.getElementById("toast");
+
+
 function setStatus(msg, type=""){
   const el = document.getElementById("status");
   if(!el) return;
   el.textContent = msg || "";
   el.className = "status " + (type||"");
+}
+
+function toast(msg, time=2500){
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  setTimeout(()=>toastEl.classList.remove("show"), time);
 }
  
 
@@ -66,7 +80,7 @@ function setStatus(msg, type=""){
       document.getElementById("currentUserLabel").textContent = currentUserId;
   
       // 🎉 FECHA O MODAL AQUI (garantido)
-      hideModal();
+      //hideModal();
   
       toast("Login realizado com sucesso!", 2500);
       setStatus(`Logado como ${currentUserId}. Sincronizando...`, "success");
